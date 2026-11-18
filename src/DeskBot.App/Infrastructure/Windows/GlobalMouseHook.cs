@@ -23,7 +23,7 @@ internal sealed class GlobalMouseHook : IDisposable
     public void Start()
     {
         if (_thread is not null) return;
-        using var ready = new ManualResetEventSlim();
+        var ready = new ManualResetEventSlim(); // thread дуусах хүртэл амьд байх ёстой (dispose хийхгүй)
         _thread = new Thread(() => Run(ready)) { IsBackground = true, Name = "DeskBot.MouseHook" };
         _thread.Start();
         ready.Wait(TimeSpan.FromSeconds(2));

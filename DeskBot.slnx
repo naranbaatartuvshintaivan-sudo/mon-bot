@@ -1,5 +1,8 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/DeskBot.App/DeskBot.App.csproj">
+      <Platform Project="x64" />
+    </Project>
     <Project Path="src/DeskBot.Core/DeskBot.Core.csproj" />
   </Folder>
   <Folder Name="/tests/">

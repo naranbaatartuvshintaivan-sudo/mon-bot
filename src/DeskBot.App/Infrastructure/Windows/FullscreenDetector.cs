@@ -30,6 +30,10 @@ internal static class FullscreenDetector
         if (name is "WorkerW" or "Progman" or "Shell_TrayWnd" or "Shell_SecondaryTrayWnd")
             return false;
 
+        // Caption-тэй цонх (maximized + auto-hide taskbar) fullscreen биш
+        var style = GetWindowLongPtr(fg, GWL_STYLE).ToInt64();
+        if ((style & WS_CAPTION) == WS_CAPTION) return false;
+
         if (!GetWindowRect(fg, out var r)) return false;
         var fgMon = Monitors.FromWindow(fg);
         if (fgMon is null || fgMon.Handle != monitor.Handle) return false;

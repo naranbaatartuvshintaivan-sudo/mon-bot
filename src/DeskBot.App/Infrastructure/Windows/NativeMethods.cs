@@ -71,6 +71,8 @@ internal static class NativeMethods
     public delegate bool MonitorEnumProc(IntPtr hMonitor, IntPtr hdc, ref RECT rect, IntPtr data);
 
     public const int GWL_EXSTYLE = -20;
+    public const int GWL_STYLE = -16;
+    public const long WS_CAPTION = 0x00C00000;
     public const long WS_EX_TOOLWINDOW = 0x00000080;
     public const long WS_EX_NOACTIVATE = 0x08000000;
     public static readonly IntPtr HWND_TOPMOST = new(-1);
