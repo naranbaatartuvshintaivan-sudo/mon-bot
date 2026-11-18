@@ -1,7 +1,7 @@
 # HANDOFF → Claude Code (Mac): DeskBot macOS native app
 
 > Энэ файлыг бүтнээр нь уншаад ажлаа эхэл. Асуулт бага асууж, шийдвэрээ өөрөө гаргаж, assumption-уудаа тэмдэглэ.
-> Хэрэглэгч: Мөрөн. Хариултаа монголоор бич (техник нэр томьёо англиар). Preamble хэрэггүй, шууд барь.
+> Хариултаа монголоор бич (техник нэр томьёо англиар). Preamble хэрэггүй, шууд барь.
 
 ---
 
@@ -31,7 +31,7 @@ Repo: `github.com/naranbaatartuvshintaivan-sudo/mon-bot` (private), branch `main
 - `README.md` — feature статус, privacy; `docs/ROADMAP.md` — v0.2 болон advanced module-ууд
 - Release exe: `dotnet publish` (README-д заасан)
 
-Одоо Мөрөн **Mac дээр** байгаа тул **macOS native хувилбар** хийх шийдвэр гарсан. Port биш — Swift-ээр шинээр бичнэ, гэхдээ Core-ийн логик, тоон утгуудыг ЯГ хуулна (хоёр платформ дээр robot ижил зан төлөвтэй байх ёстой).
+Одоо хэрэглэгч **Mac дээр** байгаа тул **macOS native хувилбар** хийх шийдвэр гарсан. Port биш — Swift-ээр шинээр бичнэ, гэхдээ Core-ийн логик, тоон утгуудыг ЯГ хуулна (хоёр платформ дээр robot ижил зан төлөвтэй байх ёстой).
 
 ## 3. Эхлээд шалга (Phase 0)
 
@@ -42,7 +42,7 @@ xcode-select -p              # Command Line Tools / Xcode байгаа эсэх
 swift --version
 git --version; gh --version
 ```
-- Swift toolchain байхгүй бол: `xcode-select --install` (admin эрх хэрэгтэй байж магадгүй — энэ сургуулийн Mac байж болзошгүй; эрхгүй бол Мөрөнд хэл, өөр шийдэл бүү зохио).
+- Swift toolchain байхгүй бол: `xcode-select --install` (admin эрх хэрэгтэй байж магадгүй — энэ сургуулийн Mac байж болзошгүй; эрхгүй бол хэрэглэгчид хэл, өөр шийдэл бүү зохио).
 - macOS ≥ 14 бол `@Observable` ашигла; 13 бол `ObservableObject`.
 - Repo-г clone хий, `macos/` фолдерт ажилла. Windows кодыг (`src/`) бүү өөрчил.
 
@@ -129,7 +129,7 @@ SwiftUI `Canvas` + `TimelineView(.animation(paused: isHidden))`. Static зура
 5. **M4** — Home, Reminders + calendar, Face, Settings, CPU/RAM/Battery, hotkey, login item, game mode.
 6. **M5** — Music (Spotify/Music.app), `scripts/bundle.sh` → `DeskBot.app`, README-д macOS хэсэг нэм.
 
-Commit message-ийн төгсгөлд Co-Authored-By мөр нэм. `main` дээр шууд push хийх нь OK (Мөрөн push хийгээд явахыг хүссэн).
+Commit message-ийн төгсгөлд Co-Authored-By мөр нэм. `main` дээр шууд push хийх нь OK (хэрэглэгч push хийгээд явахыг хүссэн).
 
 ## 10. Definition of Done (macOS v0.1)
 
