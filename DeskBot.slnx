@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/DeskBot.Core/DeskBot.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DeskBot.Core.Tests/DeskBot.Core.Tests.csproj" />
+  </Folder>
+</Solution>
