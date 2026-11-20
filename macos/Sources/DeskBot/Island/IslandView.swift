@@ -69,7 +69,7 @@ struct IslandView: View {
     private var header: some View {
         let faceH = max(0, model.headerHeight - 2 * Self.faceMarginY)
         if let n = model.notchSize {
-            RobotFaceView(driver: face, notchWidth: Double(n.width), paused: model.facePaused)
+            FaceSlot(driver: face, notchWidth: Double(n.width), paused: model.facePaused)
                 .frame(height: faceH)
         } else {
             ZStack {
@@ -78,9 +78,42 @@ struct IslandView: View {
                         .padding(.leading, 16)
                         .transition(.opacity)
                 }
-                RobotFaceView(driver: face, paused: model.facePaused)
+                FaceSlot(driver: face, notchWidth: nil, paused: model.facePaused)
                     .frame(width: model.faceWidth, height: faceH)
             }
+        }
+    }
+}
+
+/// Debug export (ImageRenderer): NSView-ийн оронд face-ийг bitmap болгон зурна.
+/// (`@Entry` macro нь Command Line Tools-д plugin-гүй тул гараар.)
+private struct FaceAsImageKey: EnvironmentKey { static let defaultValue = false }
+
+extension EnvironmentValues {
+    var faceAsImage: Bool {
+        get { self[FaceAsImageKey.self] }
+        set { self[FaceAsImageKey.self] = newValue }
+    }
+}
+
+/// Robot face — app дотор NSView (CPU хэмнэлттэй), export үед bitmap.
+private struct FaceSlot: View {
+    let driver: FaceDriver
+    let notchWidth: Double?
+    let paused: Bool
+    @Environment(\.faceAsImage) private var asImage
+
+    var body: some View {
+        if asImage {
+            GeometryReader { geo in
+                let spacing = notchWidth.map { Double(geo.size.width) / 2 + $0 / 2 }
+                if let img = FaceRenderer.image(size: geo.size, scale: 2, snapshot: driver.snapshot,
+                                                style: driver.style(spacingOverride: spacing)) {
+                    Image(decorative: img, scale: 2)
+                }
+            }
+        } else {
+            RobotFaceView(driver: driver, notchWidth: notchWidth, paused: paused)
         }
     }
 }

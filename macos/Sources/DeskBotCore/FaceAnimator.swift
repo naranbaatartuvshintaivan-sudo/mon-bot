@@ -10,14 +10,38 @@ public struct FaceAnimatorSettings: Equatable, Sendable {
     public var animationSpeed = 1.0
     /// Glitch theme — RGB split burst хуваарь ажиллана.
     public var glitchTheme = false
+    /// Тасралтгүй хөдөлдөг theme (Matrix бороо) — үргэлж бүтэн fps.
+    public var continuousTheme = false
 
     public init(followCursor: Bool = true, reducedMotion: Bool = false, blinkFrequency: Double = 1,
-                animationSpeed: Double = 1, glitchTheme: Bool = false) {
+                animationSpeed: Double = 1, glitchTheme: Bool = false, continuousTheme: Bool = false) {
         self.followCursor = followCursor
         self.reducedMotion = reducedMotion
         self.blinkFrequency = blinkFrequency
         self.animationSpeed = animationSpeed
         self.glitchTheme = glitchTheme
+        self.continuousTheme = continuousTheme
+    }
+}
+
+/// Render хурдны хэрэгцээ. Нүд тайван үед бүтэн fps-ээр зурах шаардлагагүй (CPU).
+public enum FaceFrameDemand: Int, Comparable, Sendable {
+    /// Тайван: breathing л үлдсэн (0.022 далайц) → 10Hz хангалттай.
+    case idle
+    /// Удаан хөвөх overlay (zzz, ♪) → 20Hz.
+    case ambient
+    /// Шилжилт, анивчилт, харц хөдөлж байна, хурдан overlay → бүтэн fps.
+    case active
+
+    public static func < (a: Self, b: Self) -> Bool { a.rawValue < b.rawValue }
+
+    /// Frame хоорондын хугацаа. nil = дэлгэцийн refresh (performance mode-д 30fps).
+    public func interval(performanceMode: Bool) -> Double? {
+        switch self {
+        case .idle: 1.0 / 10
+        case .ambient: 1.0 / 20
+        case .active: performanceMode ? 1.0 / 30 : nil
+        }
     }
 }
 
@@ -32,6 +56,13 @@ public struct FaceAnimator {
     public static let noticeRate = 6.0
     public static let cursorFreshSeconds = 8.0
     public static let clickPulseDecay = 2.8
+    /// Харц "зогссон" гэж тооцох зай (normalized look; ≈0.2pt — нүдэнд үл ялгагдана, үлдсэнийг idle 10Hz гүйцээнэ).
+    public static let lookSettle = 0.02
+    public static let noticeSettle = 0.005
+    /// 10Hz-ийн frame-ийг ч бүтэн тооцохын тулд (C# 0.05 нь 60fps-д зориулсан).
+    public static let maxIdleFrameDt = 0.15
+    /// Удаан хөдөлдөг overlay-ууд (ambient 20Hz-д гөлгөр харагдана).
+    public static let slowOverlays: FaceOverlay = [.zzz, .notes]
 
     public var settings: FaceAnimatorSettings
     private let random: () -> Double
@@ -113,9 +144,10 @@ public struct FaceAnimator {
     // MARK: - Frame
 
     /// Render frame бүрийн бодит dt (секунд). C#: min(dt, 0.05) × AnimationSpeed.
-    public mutating func step(rawDt: Double) {
+    /// `maxDt` — бага fps-ээр (idle 10Hz) зурах үед цаг удаашрахгүйн тулд том clamp өгнө.
+    public mutating func step(rawDt: Double, maxDt: Double = FaceAnimator.maxFrameDt) {
         guard rawDt > 0 else { return }
-        let dt = min(rawDt, Self.maxFrameDt) * settings.animationSpeed
+        let dt = min(rawDt, maxDt) * settings.animationSpeed
         time += dt
         frame += 1
         update(dt: dt)
@@ -130,28 +162,14 @@ public struct FaceAnimator {
         blink.update(time: time, canBlink: canBlink, sleepy: expression == .sleepy,
                      frequency: settings.blinkFrequency, random: random)
 
-        // Харах чиглэл
-        var target = SIMD2<Double>.zero
-        let cursorFresh = cursor != nil && time - lastCursorMove < Self.cursorFreshSeconds
-
-        if settings.followCursor, let c = cursor { target = Self.lookAt(c) }
-
-        if !cursorFresh || !settings.followCursor {
-            // Cursor хөдлөхгүй бол өөрөө эргэн тойрноо харна — "амьд" мэдрэмж
-            if time >= nextIdleAction {
-                idleLook = SIMD2((random() * 2 - 1) * 0.75, (random() * 2 - 1) * 0.4)
-                idleLookUntil = time + 1.0 + random() * 1.2
-                nextIdleAction = time + 4 + random() * 8
-                if random() < 0.35 { blink.pullForward(to: time + 0.3) }
-            }
-            if time < idleLookUntil { target = idleLook }
+        // Cursor хөдлөхгүй бол өөрөө эргэн тойрноо харна — "амьд" мэдрэмж
+        if isWandering, time >= nextIdleAction {
+            idleLook = SIMD2((random() * 2 - 1) * 0.75, (random() * 2 - 1) * 0.4)
+            idleLookUntil = time + 1.0 + random() * 1.2
+            nextIdleAction = time + 4 + random() * 8
+            if random() < 0.35 { blink.pullForward(to: time + 0.3) }
         }
-
-        if expression == .newMessage { target = SIMD2(0.85, -0.6) }
-        else if expression == .sleepy { target = SIMD2(0, 0.35) }
-        if let g = glanceTarget, time < glanceUntil { target = Self.lookAt(g) }
-
-        if reduced { target *= Self.reducedLookScale }
+        let target = lookTarget
         look = EyeMath.smoothToward(look, target, dt: dt, rate: reduced ? Self.reducedLookRate : Self.lookRate)
 
         // Notice — cursor ойртоход нүд томорч, гэрэлтэнэ, нэг анивчина
@@ -166,6 +184,40 @@ public struct FaceAnimator {
             glitchUntil = time + 0.14 + random() * 0.14
             nextGlitch = time + 2 + random() * 4
         }
+    }
+
+    private var isWandering: Bool {
+        let cursorFresh = cursor != nil && time - lastCursorMove < Self.cursorFreshSeconds
+        return !cursorFresh || !settings.followCursor
+    }
+
+    /// Одоогийн оролтоор харах ёстой чиглэл (reduced motion-ий scale орсон).
+    public var lookTarget: SIMD2<Double> {
+        var target = SIMD2<Double>.zero
+        if settings.followCursor, let c = cursor { target = Self.lookAt(c) }
+        if isWandering && time < idleLookUntil { target = idleLook }
+        if expression == .newMessage { target = SIMD2(0.85, -0.6) }
+        else if expression == .sleepy { target = SIMD2(0, 0.35) }
+        if let g = glanceTarget, time < glanceUntil { target = Self.lookAt(g) }
+        if settings.reducedMotion { target *= Self.reducedLookScale }
+        return target
+    }
+
+    /// Энэ төлөвт ямар хурдаар зурах хэрэгтэй вэ.
+    public var frameDemand: FaceFrameDemand {
+        if transT < 1 || blink.isBlinking || clickPulse > 0 || isGlitching || settings.continuousTheme { return .active }
+        if abs(notice - (isCursorNear ? 1 : 0)) > Self.noticeSettle { return .active }
+        // Ойрын event-ийг idle frame-ийн хооронд алдахгүйн тулд урьдчилан бүтэн fps руу шилжинэ.
+        let soon = Self.maxIdleFrameDt
+        if BlinkScheduler.canBlink(expression) && blink.nextBlink - time < soon { return .active }
+        if isWandering && nextIdleAction - time < soon { return .active }
+        if settings.glitchTheme && !settings.reducedMotion && nextGlitch - time < soon { return .active }
+        let d = look - lookTarget
+        if (d * d).sum().squareRoot() > Self.lookSettle { return .active }
+        let p = to
+        if p.bounce > 0.001 && !settings.reducedMotion { return .active }
+        if !p.overlay.isEmpty { return Self.slowOverlays.isSuperset(of: p.overlay) ? .ambient : .active }
+        return .idle
     }
 
     static func lookAt(_ p: SIMD2<Double>) -> SIMD2<Double> {

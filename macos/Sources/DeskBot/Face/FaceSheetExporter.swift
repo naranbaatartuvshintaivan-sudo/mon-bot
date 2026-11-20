@@ -69,10 +69,11 @@ enum FaceSheetExporter {
             if cell.spacingOverride != nil {
                 Rectangle().fill(Color(white: 0.3)).frame(width: 185, height: h) // notch-ийн байрлал (саарал)
             }
-            Canvas { ctx, size in
-                FaceRenderer.draw(&ctx, size: size, snapshot: cell.snapshot, style: style)
+            let faceSize = CGSize(width: cell.spacingOverride == nil ? IslandSizing().faceWidth(.collapsed) : cell.islandWidth,
+                                  height: h - 2)
+            if let img = FaceRenderer.image(size: faceSize, scale: 3, snapshot: cell.snapshot, style: style) {
+                Image(decorative: img, scale: 3).frame(width: faceSize.width, height: faceSize.height)
             }
-            .frame(width: cell.spacingOverride == nil ? IslandSizing().faceWidth(.collapsed) : cell.islandWidth, height: h - 2)
         }
         .frame(width: cell.islandWidth, height: h)
     }
@@ -108,6 +109,7 @@ enum IslandSheetExporter {
         }
         let notch = CGSize(width: 185, height: 32)
         let sheet = VStack(alignment: .leading, spacing: 14) {
+            // ImageRenderer нь NSView зурдаггүй → face-ийг bitmap болгон оруулна.
             HStack(alignment: .top, spacing: 14) {
                 cell(.collapsed, label: "Collapsed")
                 cell(.hover, label: "Hover")
@@ -125,6 +127,7 @@ enum IslandSheetExporter {
         .padding(14)
         .background(Color(white: 0.16))
         .environment(\.colorScheme, .dark)
+        .environment(\.faceAsImage, true)
 
         let renderer = ImageRenderer(content: sheet)
         renderer.scale = 2

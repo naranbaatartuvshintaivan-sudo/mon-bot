@@ -82,7 +82,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             quit: { NSApp.terminate(nil) })
 
         island.show()
-        cursor.start()
+        // Bench: `DESKBOT_BENCH_STILL=1` — cursor event авахгүй (хөдөлгөөнгүй mouse-ийг дуурайж idle CPU хэмжинэ).
+        if ProcessInfo.processInfo.environment["DESKBOT_BENCH_STILL"] != "1" { cursor.start() }
         brain.start()
         Log.info("DeskBot started (notch: \(island.layout.hasNotch), frame: \(NSStringFromRect(island.layout.frame)))")
         startDebugHeartbeat()
@@ -95,9 +96,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             MainActor.assumeIsolated {
                 guard let self else { return }
                 let a = self.face.animator
-                Log.info(String(format: "face t=%.1f expr=%@ look=(%.2f,%.2f) notice=%.2f blink=%.2f moves=%d near=%@",
-                                a.time, a.expression.rawValue, a.look.x, a.look.y, a.notice, a.blinkOpenness,
-                                self.cursor.moveEvents, a.isCursorNear ? "yes" : "no"))
+                Log.info(String(format: "face t=%.1f demand=%d expr=%@ look=(%.2f,%.2f) notice=%.2f blink=%.2f moves=%d near=%@ frames=%d",
+                                a.time, a.frameDemand.rawValue, a.expression.rawValue, a.look.x, a.look.y, a.notice, a.blinkOpenness,
+                                self.cursor.moveEvents, a.isCursorNear ? "yes" : "no", RobotFaceNSView.framesDrawn))
             }
         }
     }

@@ -63,6 +63,10 @@ final class IslandController {
     static let padX: CGFloat = 28
     static let padBottom: CGFloat = 30
     static let tickInterval: TimeInterval = 1.0 / 30 // C#: cursor timer 33ms
+    /// Cursor хол, collapsed үед (CPU wake-up хэмнэнэ).
+    static let slowTickInterval: TimeInterval = 1.0 / 10
+    /// Үүнээс ойр бол 30Hz (hover delay 120ms, click-through-ийг цаг тухайд нь солих).
+    static let nearDistance: CGFloat = 300
 
     private let settings: AppSettings
     let model = IslandModel()
@@ -311,13 +315,22 @@ final class IslandController {
 
     // MARK: - Tick (hover, click-through, auto-hide)
 
-    private func startTicking() {
-        guard tickTimer == nil else { return }
-        let t = Timer(timeInterval: Self.tickInterval, repeats: true) { [weak self] _ in
+    private func startTicking(interval: TimeInterval = IslandController.tickInterval) {
+        if let t = tickTimer, t.timeInterval == interval { return }
+        tickTimer?.invalidate()
+        let t = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.tick() }
         }
+        t.tolerance = interval * 0.1
         RunLoop.main.add(t, forMode: .common) // menu нээлттэй үед ч ажиллана
         tickTimer = t
+    }
+
+    /// Cursor island-аас хол, collapsed, нуугдаагүй бол 10Hz; бусад үед 30Hz.
+    private func adaptTickRate(cursor p: NSPoint) {
+        let r = layout.frame.insetBy(dx: -Self.nearDistance, dy: -Self.nearDistance)
+        let slow = machine.mode == .collapsed && !r.contains(p) && !settings.autoHide
+        startTicking(interval: slow ? Self.slowTickInterval : Self.tickInterval)
     }
 
     private func tick() {
@@ -340,6 +353,7 @@ final class IslandController {
                         autoCollapse: Double(settings.autoCollapseMs) / 1000)
         let textFocused = panel.firstResponder is NSText
         if let m = machine.tick(now: now, pinned: settings.pinned, textFocused: textFocused) { apply(m) }
+        adaptTickRate(cursor: p)
     }
 
     private func setHiddenUp(_ hidden: Bool) {
