@@ -79,13 +79,29 @@ enum FaceSheetExporter {
     }
 }
 
-/// Debug: island-ийн 4 mode (+ notch хувилбар)-ийг offscreen зурна. `DeskBot --render-island out.png`
+/// Debug: island-ийн mode-ууд + control center-ийн tab бүрийг offscreen зурна. `DeskBot --render-island out.png`
+/// Бодит settings/reminders-ийг ХӨНДӨХГҮЙ (түр файл, default settings).
 @MainActor
 enum IslandSheetExporter {
     static func export(to url: URL) throws {
         let settings = AppSettings()
         let sizing = IslandSizing(settings)
-        func cell(_ mode: IslandMode, notch: CGSize? = nil, pinned: Bool = false, label: String) -> some View {
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("deskbot-export-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let reminders = ReminderService(url: tmp)
+        let soon = Date().addingTimeInterval(45 * 60)
+        try? reminders.add("Stand-up meeting", dueAt: soon)
+        try? reminders.add("Drink water", dueAt: soon.addingTimeInterval(3600))
+        let system = SystemMonitor()
+        system.sample()
+        system.sample()
+        let expression = ExpressionState()
+        let previewFace = FaceDriver(settings: settings, random: { 0.5 })
+        let deps = ControlCenterDeps(settings: settings, reminders: reminders, system: system,
+                                     expression: expression, previewFace: previewFace)
+
+        func cell(_ mode: IslandMode, notch: CGSize? = nil, pinned: Bool = false, tab: ControlTab = .home,
+                  label: String) -> some View {
             let m = IslandModel()
             m.mode = mode
             m.islandSize = sizing.size(mode, notch: notch)
@@ -96,11 +112,12 @@ enum IslandSheetExporter {
             m.cornerRadius = settings.cornerRadius + (mode == .expanded ? 8 : 0)
             m.pinned = pinned
             m.faceVisible = true
-            m.alertTitle = "Test reminder"
+            m.selectedTab = tab
+            m.alertTitle = "Stand-up meeting"
             m.alertTime = "Reminder · 09:30"
             let driver = FaceDriver(settings: settings, random: { 0.5 })
             return VStack(spacing: 4) {
-                IslandView(model: m, face: driver, actions: IslandActions())
+                IslandView(model: m, face: driver, actions: IslandActions(), deps: deps)
                     .frame(width: m.islandSize.width + 2 * IslandController.padX,
                            height: m.islandSize.height + IslandController.padBottom)
                     .background(Color(white: 0.25))
@@ -109,19 +126,19 @@ enum IslandSheetExporter {
         }
         let notch = CGSize(width: 185, height: 32)
         let sheet = VStack(alignment: .leading, spacing: 14) {
-            // ImageRenderer нь NSView зурдаггүй → face-ийг bitmap болгон оруулна.
             HStack(alignment: .top, spacing: 14) {
                 cell(.collapsed, label: "Collapsed")
                 cell(.hover, label: "Hover")
                 cell(.alert, label: "Alert")
-            }
-            HStack(alignment: .top, spacing: 14) {
                 cell(.collapsed, notch: notch, label: "Collapsed · notch")
-                cell(.hover, notch: notch, label: "Hover · notch")
             }
             HStack(alignment: .top, spacing: 14) {
-                cell(.expanded, pinned: true, label: "Expanded · pinned")
-                cell(.expanded, notch: notch, label: "Expanded · notch")
+                cell(.expanded, pinned: true, tab: .home, label: "Home · pinned")
+                cell(.expanded, tab: .reminders, label: "Reminders")
+            }
+            HStack(alignment: .top, spacing: 14) {
+                cell(.expanded, tab: .face, label: "Face")
+                cell(.expanded, notch: notch, tab: .settings, label: "Settings · notch")
             }
         }
         .padding(14)

@@ -4,8 +4,10 @@ import Observation
 import DeskBotCore
 
 /// Automation rules → ExpressionStateMachine (C# порт: src/DeskBot.App/Services/CompanionBrain.cs).
-/// M2: зөвхөн Ambient (5) ба Cursor (10) layer, мөн debug цэсний UserClick (40).
-/// Music / Reminder / Battery / Error — M4–M5.
+/// - Reminder 5 мин дутуу → ActiveTask Reminder 3с; цаг болсон → Reminder (Done/Snooze хүртэл)
+/// - Battery ≤ 15% & цэнэглээгүй → SystemStatus LowBattery
+/// - 5 мин idle → Ambient Sleepy; click → Surprised 450ms; Face tab preview → Preview (45) 3с
+/// Music — M5.
 @MainActor
 final class CompanionBrain {
     static let idleSleepSeconds: TimeInterval = 5 * 60
@@ -51,9 +53,32 @@ final class CompanionBrain {
         machine.set(.userClick, .surprised, now: .now, duration: Self.clickSeconds)
     }
 
-    /// Debug цэс: expression-ийг UserClick layer-ээр түр тавина.
+    /// Face tab / debug цэс: expression-ийг Preview layer (45)-ээр 3с түр тавина.
     func preview(_ e: RobotExpression) {
-        machine.set(.userClick, e, now: .now, duration: Self.previewSeconds)
+        machine.set(.preview, e, now: .now, duration: Self.previewSeconds)
+    }
+
+    /// C#: Approaching → ActiveTask Reminder 3с.
+    func reminderApproaching() {
+        machine.set(.activeTask, .reminder, now: .now, duration: 3)
+    }
+
+    /// C#: Fired → Reminder layer (Done/Snooze хүртэл).
+    func reminderFired() {
+        machine.set(.reminder, .reminder, now: .now)
+    }
+
+    /// C# SyncReminderLayer: дууссан/snooze хийсэн бол Reminder layer-ийг цэвэрлэнэ.
+    func syncReminders(hasFiredPending: Bool) {
+        if !hasFiredPending { machine.clear(.reminder, now: .now) }
+    }
+
+    func battery(_ b: BatteryState) {
+        if CompanionRules.isBatteryLow(b) {
+            machine.set(.systemStatus, .lowBattery, now: .now)
+        } else {
+            machine.clear(.systemStatus, now: .now)
+        }
     }
 
     private func tick() {

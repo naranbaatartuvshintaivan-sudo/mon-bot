@@ -7,6 +7,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let settings: AppSettings
     private let island: IslandController
+    private let hotkeySymbols: () -> String?
     private let quit: () -> Void
     private let currentExpression: () -> RobotExpression
     private let previewExpression: (RobotExpression) -> Void
@@ -21,11 +22,13 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let expressionMenu = NSMenu(title: "Expression")
 
     init(settings: AppSettings, island: IslandController,
+         hotkeySymbols: @escaping () -> String?,
          currentExpression: @escaping () -> RobotExpression,
          previewExpression: @escaping (RobotExpression) -> Void,
          quit: @escaping () -> Void) {
         self.settings = settings
         self.island = island
+        self.hotkeySymbols = hotkeySymbols
         self.currentExpression = currentExpression
         self.previewExpression = previewExpression
         self.quit = quit
@@ -64,8 +67,6 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         let expressionItem = NSMenuItem(title: "Expression", action: nil, keyEquivalent: "")
         expressionItem.submenu = expressionMenu
         menu.addItem(expressionItem)
-        // Debug: Alert mode-ийг турших (ReminderService — M4).
-        menu.addItem(make("Test Alert", #selector(onTestAlert)))
         menu.addItem(.separator())
         menu.addItem(make("Quit DeskBot", #selector(onQuit), key: "q"))
         item.menu = menu
@@ -81,7 +82,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             rebuildDisplayMenu()
         } else {
             toggleItem.title = island.isVisible ? "Hide DeskBot" : "Show DeskBot"
-            centerItem.title = island.mode == .expanded ? "Close Control Center" : "Open Control Center"
+            let title = island.mode == .expanded ? "Close Control Center" : "Open Control Center"
+            centerItem.title = hotkeySymbols().map { "\(title)  (\($0))" } ?? title
             pinItem.state = settings.pinned ? .on : .off
             autoHideItem.state = settings.autoHide ? .on : .off
             lockItem.state = settings.lockPosition ? .on : .off
@@ -118,7 +120,6 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     @objc private func onLock() { settings.lockPosition.toggle() }
     @objc private func onReset() { island.resetPosition() }
     @objc private func onQuit() { quit() }
-    @objc private func onTestAlert() { island.showAlert(title: "Test reminder", time: .now) }
     @objc private func onDisplay(_ sender: NSMenuItem) {
         guard let id = sender.representedObject as? String else { return }
         // Шинэ дэлгэц дээр дээд төвөөс эхэлнэ (өөр хэмжээтэй дэлгэцэд offset утгагүй).

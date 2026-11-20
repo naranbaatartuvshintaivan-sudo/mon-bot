@@ -11,6 +11,7 @@ struct IslandView: View {
     let model: IslandModel
     let face: FaceDriver
     let actions: IslandActions
+    let deps: ControlCenterDeps
 
     var body: some View {
         island
@@ -54,7 +55,7 @@ struct IslandView: View {
                         .transition(.opacity)
                 }
                 if model.mode == .expanded {
-                    ControlCenterPlaceholder(model: model, actions: actions)
+                    ControlCenterView(model: model, actions: actions, deps: deps)
                         .transition(.opacity)
                 }
                 Spacer(minLength: 0)
@@ -97,7 +98,7 @@ extension EnvironmentValues {
 }
 
 /// Robot face — app дотор NSView (CPU хэмнэлттэй), export үед bitmap.
-private struct FaceSlot: View {
+struct FaceSlot: View {
     let driver: FaceDriver
     let notchWidth: Double?
     let paused: Bool
@@ -156,75 +157,6 @@ private struct AlertBar: View {
         }
         .padding(.horizontal, 16)
         .frame(height: IslandSizing.alertBarHeight)
-    }
-}
-
-/// M3 placeholder: tab strip + "Coming in M4". Tab-ийн бодит агуулга M4-д.
-private struct ControlCenterPlaceholder: View {
-    let model: IslandModel
-    let actions: IslandActions
-
-    var body: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 4) {
-                ForEach(ControlTab.allCases) { tab in
-                    let selected = model.selectedTab == tab
-                    Button { model.selectedTab = tab } label: {
-                        Label(tab.rawValue, systemImage: tab.icon)
-                            .font(.system(size: 12, weight: .medium))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(Capsule().fill(Color.white.opacity(selected ? 0.12 : 0)))
-                            .foregroundStyle(selected ? .white : .white.opacity(0.6))
-                            .contentShape(Capsule())
-                    }
-                    .buttonStyle(.plain)
-                }
-                Spacer(minLength: 8)
-                IconButton(symbol: model.pinned ? "pin.fill" : "pin",
-                           tint: model.pinned ? IslandView.accent : .white.opacity(0.7),
-                           help: model.pinned ? "Unpin" : "Pin (гадна дарахад хаагдахгүй)",
-                           action: actions.togglePin)
-                IconButton(symbol: "xmark", tint: .white.opacity(0.7), help: "Close (Esc)", action: actions.close)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-
-            Rectangle().fill(Color.white.opacity(0.08)).frame(height: 1)
-
-            VStack(spacing: 8) {
-                Image(systemName: model.selectedTab.icon)
-                    .font(.system(size: 28, weight: .light))
-                    .foregroundStyle(IslandView.accent)
-                Text(model.selectedTab.rawValue)
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(.white)
-                Text("Coming in M4")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.white.opacity(0.5))
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-    }
-}
-
-private struct IconButton: View {
-    let symbol: String
-    let tint: Color
-    let help: String
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(tint)
-                .frame(width: 26, height: 26)
-                .background(Circle().fill(Color.white.opacity(0.08)))
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .help(help)
     }
 }
 

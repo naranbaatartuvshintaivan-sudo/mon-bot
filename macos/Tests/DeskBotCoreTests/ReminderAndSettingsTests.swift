@@ -70,7 +70,7 @@ private func minutes(_ m: Double) -> TimeInterval { m * 60 }
         #expect(s.eyeSize == 1.6)
         #expect(s.baseMood == .idle)
         #expect(s.customColor == "#33E1FF")
-        #expect(s.hotkey == "Ctrl+Alt+Space")
+        #expect(s.hotkey == AppSettings.defaultHotkey)
     }
 
     @Test func roundtripAndCorruptionFallback() throws {

@@ -13,10 +13,13 @@ public enum IslandBackground: String, CaseIterable, Codable, Sendable {
 /// debounce-тэй хадгалагдана. JSON: ~/Library/Application Support/DeskBot/settings.json
 @Observable
 public final class AppSettings: Codable {
-    public static let defaultHotkey = "Ctrl+Alt+Space"
+    public static let defaultHotkey = "Option+Space"
+    /// v1 (C#-тай ижил) default — schema 2 руу шилжихэд хэрэглэгч өөрчлөөгүй бол шинэ default болгоно.
+    static let legacyDefaultHotkey = "Ctrl+Alt+Space"
     public static let defaultColor = "#33E1FF"
+    public static let currentSchema = 2
 
-    public var schemaVersion = 1
+    public var schemaVersion = AppSettings.currentSchema
 
     // ── Robot ──────────────────────────────
     public var theme: FaceTheme = .classic
@@ -56,6 +59,8 @@ public final class AppSettings: Codable {
     public var startAtLogin = false
     public var sleepWhenIdle = true
     public var hotkey = AppSettings.defaultHotkey
+    /// Control center-ийн сүүлд нээсэн tab (schema 2).
+    public var lastTab = "Home"
 
     public init() {}
 
@@ -79,7 +84,7 @@ public final class AppSettings: Codable {
         autoCollapseMs = min(max(autoCollapseMs, 0), 10_000)
         hoverDelayMs = min(max(hoverDelayMs, 0), 2000)
         baseMood = ExpressionRules.sanitizeBaseMood(baseMood)
-        if hotkey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { hotkey = Self.defaultHotkey }
+        if let spec = try? HotkeySpec.parse(hotkey) { hotkey = spec.description } else { hotkey = Self.defaultHotkey }
         if !Self.isHexColor(customColor) { customColor = Self.defaultColor }
         return self
     }
@@ -103,7 +108,7 @@ public final class AppSettings: Codable {
              islandWidth, islandHeight, hoverWidth, panelWidth, panelHeight, cornerRadius,
              backgroundOpacity, background, topOffset, offsetX, dockScreen, autoCollapseMs, hoverDelayMs,
              pinned, autoHide, lockPosition, followCursor, reactToGlobalClicks, reducedMotion,
-             performanceMode, gameModeAutoHide, startAtLogin, sleepWhenIdle, hotkey
+             performanceMode, gameModeAutoHide, startAtLogin, sleepWhenIdle, hotkey, lastTab
     }
 
     /// M0–M2 хувилбарын key (уншихад л).
@@ -150,6 +155,12 @@ public final class AppSettings: Codable {
         startAtLogin = try d(.startAtLogin, startAtLogin)
         sleepWhenIdle = try d(.sleepWhenIdle, sleepWhenIdle)
         hotkey = try d(.hotkey, hotkey)
+        lastTab = try d(.lastTab, lastTab)
+
+        // Migration (хуучин файл эвдрэхгүй, дутуу key → default):
+        // v1 → v2: C#-ийн default hotkey-г хэрэглэгч өөрчлөөгүй бол macOS-ийн шинэ default (⌥Space).
+        if schemaVersion < 2 && hotkey == Self.legacyDefaultHotkey { hotkey = Self.defaultHotkey }
+        schemaVersion = max(schemaVersion, Self.currentSchema)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -188,5 +199,6 @@ public final class AppSettings: Codable {
         try c.encode(startAtLogin, forKey: .startAtLogin)
         try c.encode(sleepWhenIdle, forKey: .sleepWhenIdle)
         try c.encode(hotkey, forKey: .hotkey)
+        try c.encode(lastTab, forKey: .lastTab)
     }
 }

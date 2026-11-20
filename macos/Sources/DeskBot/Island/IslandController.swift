@@ -87,17 +87,27 @@ final class IslandController {
 
     /// Robot дээр click (Surprised + pulse).
     var onFaceClick: (() -> Void)?
+    /// Mode солигдох бүрд (SystemMonitor-ийн хурд г.м.).
+    var onModeChange: ((IslandMode) -> Void)?
+    /// Alert-ийн Snooze (true) / Done (false).
+    var onAlertFinished: ((_ snoozed: Bool) -> Void)?
 
-    init(settings: AppSettings, face: FaceDriver) {
+    /// Game mode (fullscreen app) — island түр нуугдсан. `isVisible` нь хэрэглэгчийн хүсэл хэвээр.
+    private(set) var isGameHidden = false
+    /// Panel харагдахгүй (native fullscreen Space, бүрэн хучигдсан) → face зогсоно.
+    private var isOccluded = false
+
+    init(settings: AppSettings, face: FaceDriver, deps: ControlCenterDeps) {
         self.settings = settings
         self.face = face
         panel = IslandPanel(contentRect: NSRect(x: 0, y: 0, width: 190, height: 34))
+        model.selectedTab = ControlTab(rawValue: settings.lastTab) ?? .home
 
         var actions = IslandActions()
         actions.togglePin = { [weak self] in self?.settings.pinned.toggle() }
         actions.close = { [weak self] in self?.setMode(.collapsed) }
-        actions.finishAlert = { [weak self] _ in self?.finishAlert() }
-        let host = NSHostingView(rootView: IslandView(model: model, face: face, actions: actions))
+        actions.finishAlert = { [weak self] snoozed in self?.finishAlert(snoozed: snoozed) }
+        let host = NSHostingView(rootView: IslandView(model: model, face: face, actions: actions, deps: deps))
         host.sizingOptions = [] // panel-ийн хэмжээг бид удирдана
         panel.contentView = host
 
@@ -115,6 +125,14 @@ final class IslandController {
         observers.append(nc.addObserver(forName: NSWindow.didResignKeyNotification,
                                         object: panel, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.outsideInteraction() }
+        })
+        observers.append(nc.addObserver(forName: NSWindow.didChangeOcclusionStateNotification,
+                                        object: panel, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.isOccluded = !self.panel.occlusionState.contains(.visible)
+                self.updateFaceVisible()
+            }
         })
         // Esc — зөвхөн өөрийн panel-ийн key event (local monitor). Бусад app-ийн гарыг уншихгүй.
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] e in
@@ -139,20 +157,52 @@ final class IslandController {
 
     func show() {
         isVisible = true
+        guard !isGameHidden else { return }
         relayout()
         face.resetClock()
-        model.faceVisible = true
         panel.orderFrontRegardless()
+        isOccluded = false
+        updateFaceVisible()
         startTicking()
     }
 
     func hide() {
         isVisible = false
-        if machine.mode != .collapsed { apply(machine.set(.collapsed) ?? .collapsed, instant: true) }
-        model.faceVisible = false
+        orderOutPanel()
+    }
+
+    /// Game mode: fullscreen app гарахад нуугдаж, дуусахад буцна (C# CheckFullscreen).
+    func setGameHidden(_ hidden: Bool) {
+        guard hidden != isGameHidden else { return }
+        isGameHidden = hidden
+        if hidden {
+            orderOutPanel(keepAlert: true)
+        } else if isVisible {
+            show()
+            if machine.mode == .alert { apply(.alert, instant: true) }
+        }
+    }
+
+    private func orderOutPanel(keepAlert: Bool = false) {
+        if machine.mode != .collapsed && !(keepAlert && machine.mode == .alert) {
+            apply(machine.set(.collapsed) ?? .collapsed, instant: true)
+        }
         tickTimer?.invalidate()
         tickTimer = nil
         panel.orderOut(nil)
+        updateFaceVisible()
+    }
+
+    private func updateFaceVisible() {
+        model.faceVisible = isVisible && !isGameHidden && !isOccluded
+    }
+
+    /// Control center-ийг тухайн tab дээр нээнэ.
+    func openTab(_ tab: ControlTab) {
+        if !isVisible { show() }
+        model.selectedTab = tab
+        settings.lastTab = tab.rawValue
+        setMode(.expanded)
     }
 
     func toggleVisible() { isVisible ? hide() : show() }
@@ -169,7 +219,7 @@ final class IslandController {
         relayout()
     }
 
-    /// M4-ийн ReminderService холбогдох хүртэл debug цэснээс туршина.
+    /// Reminder alert (Snooze/Done хүртэл). Game mode-д нуугдсан бол хадгалаад, буцаж гарахад харуулна.
     func showAlert(title: String, time: Date) {
         if !isVisible { show() }
         model.alertTitle = title
@@ -200,13 +250,24 @@ final class IslandController {
 
     private func faceClicked() {
         onFaceClick?()
+        if machine.mode == .alert {
+            model.selectedTab = .reminders // C#: Alert дээр click → Reminders tab
+            settings.lastTab = ControlTab.reminders.rawValue
+        }
         apply(machine.click())
     }
 
-    private func finishAlert() {
+    private func finishAlert(snoozed: Bool) {
+        onAlertFinished?(snoozed)
+    }
+
+    /// Alert дууссан (дараагийн alert байхгүй) — Hover/Collapsed руу.
+    func endAlert() {
         machine.finishAlert()
         apply(machine.mode)
     }
+
+    var isShowingAlert: Bool { machine.mode == .alert }
 
     private func outsideInteraction() {
         if let m = machine.outsideClick(pinned: settings.pinned) { apply(m) }
@@ -224,6 +285,7 @@ final class IslandController {
         let old = model.islandSize
         let new = target.frame.size
         layout = target
+        let modeChanged = model.mode != mode
 
         // Key: Expanded үед л (Esc, TextField). Бусад үед focus-ийг буцааж өгнө.
         if mode == .expanded {
@@ -272,6 +334,7 @@ final class IslandController {
             }
         }
         if mode != .collapsed { setHiddenUp(false) }
+        if modeChanged { onModeChange?(mode) }
     }
 
     private func placePanel(islandTopCenter c: NSPoint, size: CGSize) {
@@ -334,7 +397,7 @@ final class IslandController {
     }
 
     private func tick() {
-        guard isVisible, !panel.isPressed else { return } // чирэх үед event-ийг panel өөрөө авна
+        guard isVisible, !isGameHidden, !panel.isPressed else { return } // чирэх үед event-ийг panel өөрөө авна
         let now = Date()
         let p = NSEvent.mouseLocation
         let r = layout.frame
