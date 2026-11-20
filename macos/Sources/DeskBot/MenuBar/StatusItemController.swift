@@ -5,23 +5,27 @@ import DeskBotCore
 @MainActor
 final class StatusItemController: NSObject, NSMenuDelegate {
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-    private let isIslandVisible: () -> Bool
-    private let toggleIsland: () -> Void
-    private let resetPosition: () -> Void
+    private let settings: AppSettings
+    private let island: IslandController
     private let quit: () -> Void
     private let currentExpression: () -> RobotExpression
     private let previewExpression: (RobotExpression) -> Void
+
+    private let menu = NSMenu()
     private let toggleItem = NSMenuItem(title: "Hide DeskBot", action: nil, keyEquivalent: "")
+    private let centerItem = NSMenuItem(title: "Open Control Center", action: nil, keyEquivalent: "")
+    private let pinItem = NSMenuItem(title: "Pin Control Center", action: nil, keyEquivalent: "")
+    private let autoHideItem = NSMenuItem(title: "Auto-hide", action: nil, keyEquivalent: "")
+    private let lockItem = NSMenuItem(title: "Lock Position", action: nil, keyEquivalent: "")
+    private let displayMenu = NSMenu(title: "Display")
     private let expressionMenu = NSMenu(title: "Expression")
 
-    init(isIslandVisible: @escaping () -> Bool, toggleIsland: @escaping () -> Void,
-         resetPosition: @escaping () -> Void,
+    init(settings: AppSettings, island: IslandController,
          currentExpression: @escaping () -> RobotExpression,
          previewExpression: @escaping (RobotExpression) -> Void,
          quit: @escaping () -> Void) {
-        self.isIslandVisible = isIslandVisible
-        self.toggleIsland = toggleIsland
-        self.resetPosition = resetPosition
+        self.settings = settings
+        self.island = island
         self.currentExpression = currentExpression
         self.previewExpression = previewExpression
         self.quit = quit
@@ -30,11 +34,23 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         item.button?.image = Self.makeIcon()
         item.button?.toolTip = "DeskBot"
 
-        let menu = NSMenu()
         menu.delegate = self
-        toggleItem.action = #selector(onToggle)
-        toggleItem.target = self
+        for (m, sel) in [(toggleItem, #selector(onToggle)), (centerItem, #selector(onCenter)),
+                         (pinItem, #selector(onPin)), (autoHideItem, #selector(onAutoHide)),
+                         (lockItem, #selector(onLock))] {
+            m.action = sel
+            m.target = self
+        }
         menu.addItem(toggleItem)
+        menu.addItem(centerItem)
+        menu.addItem(.separator())
+        menu.addItem(pinItem)
+        menu.addItem(autoHideItem)
+        menu.addItem(lockItem)
+        displayMenu.delegate = self
+        let displayItem = NSMenuItem(title: "Display", action: nil, keyEquivalent: "")
+        displayItem.submenu = displayMenu
+        menu.addItem(displayItem)
         menu.addItem(make("Reset Position", #selector(onReset)))
         menu.addItem(.separator())
 
@@ -48,20 +64,45 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         let expressionItem = NSMenuItem(title: "Expression", action: nil, keyEquivalent: "")
         expressionItem.submenu = expressionMenu
         menu.addItem(expressionItem)
+        // Debug: Alert mode-ийг турших (ReminderService — M4).
+        menu.addItem(make("Test Alert", #selector(onTestAlert)))
         menu.addItem(.separator())
         menu.addItem(make("Quit DeskBot", #selector(onQuit), key: "q"))
         item.menu = menu
     }
 
-    func menuNeedsUpdate(_ menu: NSMenu) {
-        if menu === expressionMenu {
+    func menuNeedsUpdate(_ m: NSMenu) {
+        if m === expressionMenu {
             let current = currentExpression().rawValue
-            for item in menu.items {
+            for item in m.items {
                 item.state = (item.representedObject as? String) == current ? .on : .off
             }
-            return
+        } else if m === displayMenu {
+            rebuildDisplayMenu()
+        } else {
+            toggleItem.title = island.isVisible ? "Hide DeskBot" : "Show DeskBot"
+            centerItem.title = island.mode == .expanded ? "Close Control Center" : "Open Control Center"
+            pinItem.state = settings.pinned ? .on : .off
+            autoHideItem.state = settings.autoHide ? .on : .off
+            lockItem.state = settings.lockPosition ? .on : .off
         }
-        toggleItem.title = isIslandVisible() ? "Hide DeskBot" : "Show DeskBot"
+    }
+
+    /// Холбогдсон дэлгэцүүд. "Main Display" = dockScreen "" (menu bar-тай дэлгэц).
+    private func rebuildDisplayMenu() {
+        displayMenu.removeAllItems()
+        let main = make("Main Display", #selector(onDisplay(_:)))
+        main.representedObject = ""
+        main.state = settings.dockScreen.isEmpty ? .on : .off
+        displayMenu.addItem(main)
+        displayMenu.addItem(.separator())
+        for screen in NSScreen.screens {
+            let id = ScreenProvider.id(of: screen)
+            let m = make(screen.localizedName, #selector(onDisplay(_:)))
+            m.representedObject = id
+            m.state = settings.dockScreen == id ? .on : .off
+            displayMenu.addItem(m)
+        }
     }
 
     private func make(_ title: String, _ action: Selector, key: String = "") -> NSMenuItem {
@@ -70,9 +111,21 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         return m
     }
 
-    @objc private func onToggle() { toggleIsland() }
-    @objc private func onReset() { resetPosition() }
+    @objc private func onToggle() { island.toggleVisible() }
+    @objc private func onCenter() { island.toggleControlCenter() }
+    @objc private func onPin() { settings.pinned.toggle() }
+    @objc private func onAutoHide() { settings.autoHide.toggle() }
+    @objc private func onLock() { settings.lockPosition.toggle() }
+    @objc private func onReset() { island.resetPosition() }
     @objc private func onQuit() { quit() }
+    @objc private func onTestAlert() { island.showAlert(title: "Test reminder", time: .now) }
+    @objc private func onDisplay(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? String else { return }
+        // Шинэ дэлгэц дээр дээд төвөөс эхэлнэ (өөр хэмжээтэй дэлгэцэд offset утгагүй).
+        settings.offsetX = 0
+        settings.topOffset = 0
+        settings.dockScreen = id
+    }
     @objc private func onExpression(_ sender: NSMenuItem) {
         guard let raw = sender.representedObject as? String, let e = RobotExpression(rawValue: raw) else { return }
         previewExpression(e)

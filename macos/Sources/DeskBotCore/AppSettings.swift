@@ -40,7 +40,7 @@ public final class AppSettings: Codable {
     public var background: IslandBackground = .oled
     public var topOffset = 0.0
     public var offsetX = 0.0
-    public var monitorID = ""          // C#: MonitorDeviceName. macOS: NSScreen localizedName/displayID
+    public var dockScreen = ""         // C#: MonitorDeviceName. macOS: "<localizedName>#<displayID>", "" = үндсэн дэлгэц
     public var autoCollapseMs = 700
     public var hoverDelayMs = 120
 
@@ -101,13 +101,17 @@ public final class AppSettings: Codable {
         case schemaVersion, theme, baseMood, eyeShape, eyeSize, eyeSpacing, glowIntensity,
              animationSpeed, blinkFrequency, customColor,
              islandWidth, islandHeight, hoverWidth, panelWidth, panelHeight, cornerRadius,
-             backgroundOpacity, background, topOffset, offsetX, monitorID, autoCollapseMs, hoverDelayMs,
+             backgroundOpacity, background, topOffset, offsetX, dockScreen, autoCollapseMs, hoverDelayMs,
              pinned, autoHide, lockPosition, followCursor, reactToGlobalClicks, reducedMotion,
              performanceMode, gameModeAutoHide, startAtLogin, sleepWhenIdle, hotkey
     }
 
+    /// M0–M2 хувилбарын key (уншихад л).
+    private enum LegacyKeys: String, CodingKey { case monitorID }
+
     public required init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
+        let legacy = try decoder.container(keyedBy: LegacyKeys.self)
         func d<T: Decodable>(_ key: CodingKeys, _ fallback: T) throws -> T {
             try c.decodeIfPresent(T.self, forKey: key) ?? fallback
         }
@@ -131,7 +135,8 @@ public final class AppSettings: Codable {
         background = try d(.background, background)
         topOffset = try d(.topOffset, topOffset)
         offsetX = try d(.offsetX, offsetX)
-        monitorID = try d(.monitorID, monitorID)
+        dockScreen = try c.decodeIfPresent(String.self, forKey: .dockScreen)
+            ?? legacy.decodeIfPresent(String.self, forKey: .monitorID) ?? dockScreen
         autoCollapseMs = try d(.autoCollapseMs, autoCollapseMs)
         hoverDelayMs = try d(.hoverDelayMs, hoverDelayMs)
         pinned = try d(.pinned, pinned)
@@ -169,7 +174,7 @@ public final class AppSettings: Codable {
         try c.encode(background, forKey: .background)
         try c.encode(topOffset, forKey: .topOffset)
         try c.encode(offsetX, forKey: .offsetX)
-        try c.encode(monitorID, forKey: .monitorID)
+        try c.encode(dockScreen, forKey: .dockScreen)
         try c.encode(autoCollapseMs, forKey: .autoCollapseMs)
         try c.encode(hoverDelayMs, forKey: .hoverDelayMs)
         try c.encode(pinned, forKey: .pinned)

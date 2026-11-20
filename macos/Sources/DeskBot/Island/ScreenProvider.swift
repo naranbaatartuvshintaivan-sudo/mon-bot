@@ -7,10 +7,10 @@ import DeskBotCore
 enum ScreenProvider {
     static let simulateNotch = ProcessInfo.processInfo.environment["DESKBOT_SIMULATE_NOTCH"] == "1"
 
-    /// Тохиргооны monitorID-тай таарах дэлгэц, эс бөгөөс menu bar-тай үндсэн дэлгэц.
-    static func screen(for monitorID: String) -> NSScreen? {
+    /// Тохиргооны dockScreen-тай таарах дэлгэц, эс бөгөөс menu bar-тай үндсэн дэлгэц.
+    static func screen(for dockScreen: String) -> NSScreen? {
         let screens = NSScreen.screens
-        if !monitorID.isEmpty, let s = screens.first(where: { id(of: $0) == monitorID }) { return s }
+        if !dockScreen.isEmpty, let s = screens.first(where: { id(of: $0) == dockScreen }) { return s }
         return screens.first
     }
 

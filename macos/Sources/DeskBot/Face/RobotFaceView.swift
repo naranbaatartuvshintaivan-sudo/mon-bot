@@ -62,7 +62,9 @@ final class FaceDriver {
 /// Performance mode: 30fps (C#: 2 frame тутамд нэг render).
 struct RobotFaceView: View {
     let driver: FaceDriver
-    var spacingOverride: Double?
+    /// Notch-ийг тойруулсан island: нүд нь notch-ийн хоёр талын чихний төвд. Canvas-ийн бодит
+    /// (animate хийгдэж буй) өргөнөөс тооцно: spacing = W/2 + notchW/2.
+    var notchWidth: Double?
     var paused = false
 
     var body: some View {
@@ -70,8 +72,9 @@ struct RobotFaceView: View {
         TimelineView(.animation(minimumInterval: perf ? 1.0 / 30 : nil, paused: paused)) { timeline in
             Canvas(opaque: false, rendersAsynchronously: false) { ctx, size in
                 driver.advance(to: timeline.date)
+                let spacing = notchWidth.map { Double(size.width) / 2 + $0 / 2 }
                 FaceRenderer.draw(&ctx, size: size, snapshot: driver.snapshot,
-                                  style: driver.style(spacingOverride: spacingOverride))
+                                  style: driver.style(spacingOverride: spacing))
             }
         }
         .allowsHitTesting(false)

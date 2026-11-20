@@ -42,24 +42,39 @@ public struct IslandLayout: Equatable, Sendable {
     /// Notch-ийн хоёр талд нүд багтах хамгийн бага "чих"-ний өргөн.
     public static let minEarWidth: CGFloat = 44
 
-    /// Collapsed island-ийн байрлал.
-    /// - Notch-тэй, offset-гүй: notch-ийг бүрэн тойруулж, хоёр талд нь чих гаргана (нүд нь чихэнд).
-    /// - Notch-гүй (эсвэл хэрэглэгч зөөсөн): дэлгэцийн дээд ирмэгт, menu bar-ийн дээгүүр хар pill.
+    /// Collapsed island-ийн байрлал (M1 API — `place`-ийн товчлол).
     public static func collapsed(screen: ScreenGeometry, width: CGFloat, height: CGFloat,
                                  topOffset: CGFloat = 0, offsetX: CGFloat = 0) -> IslandLayout {
+        place(screen: screen, size: CGSize(width: width, height: height), topOffset: topOffset, offsetX: offsetX)
+    }
+
+    /// Ямар ч mode-ийн island-ийн байрлал.
+    /// - Notch-тэй, offset-гүй: notch-ийг бүрэн тойруулж, хоёр талд нь чих гаргана (нүд нь чихэнд).
+    /// - Notch-гүй (эсвэл хэрэглэгч зөөсөн): дэлгэцийн дээд ирмэгт, menu bar-ийн дээгүүр хар pill.
+    public static func place(screen: ScreenGeometry, size: CGSize,
+                             topOffset: CGFloat = 0, offsetX: CGFloat = 0) -> IslandLayout {
         let f = screen.frame
+        let width = min(size.width, f.width)
         if topOffset == 0, offsetX == 0, let notch = screen.notchRect {
-            let w = max(width, notch.width + 2 * minEarWidth)
-            let h = max(height, notch.height)
-            let frame = CGRect(x: (notch.midX - w / 2).rounded(), y: f.maxY - h, width: w.rounded(), height: h)
+            let w = min(max(width, notch.width + 2 * minEarWidth), f.width)
+            let h = max(size.height, notch.height)
+            var x = (notch.midX - w / 2).rounded()
+            x = min(max(x, f.minX), f.maxX - w)
+            let frame = CGRect(x: x, y: f.maxY - h, width: w.rounded(), height: h)
             let local = CGRect(x: notch.minX - frame.minX, y: h - notch.height, width: notch.width, height: notch.height)
             return IslandLayout(frame: frame, notchInIsland: local)
         }
 
         var x = f.midX - width / 2 + offsetX
         x = min(max(x, f.minX), f.maxX - width) // дэлгэцээс гарахгүй
-        let y = f.maxY - topOffset - height
-        return IslandLayout(frame: CGRect(x: x.rounded(), y: max(y, f.minY), width: width, height: height),
+        let y = f.maxY - topOffset - size.height
+        return IslandLayout(frame: CGRect(x: x.rounded(), y: max(y, f.minY), width: width, height: size.height),
                             notchInIsland: nil)
+    }
+
+    /// Notch-ийн хоёр чихний төв хоорондын зай (face-ийн spacingOverride). Notch-гүй бол nil.
+    public var earSpacing: Double? {
+        guard let n = notchInIsland else { return nil }
+        return Double((n.maxX + frame.width) / 2 - n.minX / 2)
     }
 }

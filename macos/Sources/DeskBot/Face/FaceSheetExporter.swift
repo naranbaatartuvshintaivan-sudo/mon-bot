@@ -72,8 +72,65 @@ enum FaceSheetExporter {
             Canvas { ctx, size in
                 FaceRenderer.draw(&ctx, size: size, snapshot: cell.snapshot, style: style)
             }
-            .frame(width: cell.spacingOverride == nil ? IslandView.faceWidth : cell.islandWidth, height: h - 2)
+            .frame(width: cell.spacingOverride == nil ? IslandSizing().faceWidth(.collapsed) : cell.islandWidth, height: h - 2)
         }
         .frame(width: cell.islandWidth, height: h)
+    }
+}
+
+/// Debug: island-ийн 4 mode (+ notch хувилбар)-ийг offscreen зурна. `DeskBot --render-island out.png`
+@MainActor
+enum IslandSheetExporter {
+    static func export(to url: URL) throws {
+        let settings = AppSettings()
+        let sizing = IslandSizing(settings)
+        func cell(_ mode: IslandMode, notch: CGSize? = nil, pinned: Bool = false, label: String) -> some View {
+            let m = IslandModel()
+            m.mode = mode
+            m.islandSize = sizing.size(mode, notch: notch)
+            m.headerHeight = sizing.headerHeight(mode, notch: notch)
+            m.faceWidth = sizing.faceWidth(mode)
+            m.notchSize = notch
+            m.simulatedNotch = notch != nil
+            m.cornerRadius = settings.cornerRadius + (mode == .expanded ? 8 : 0)
+            m.pinned = pinned
+            m.faceVisible = true
+            m.alertTitle = "Test reminder"
+            m.alertTime = "Reminder · 09:30"
+            let driver = FaceDriver(settings: settings, random: { 0.5 })
+            return VStack(spacing: 4) {
+                IslandView(model: m, face: driver, actions: IslandActions())
+                    .frame(width: m.islandSize.width + 2 * IslandController.padX,
+                           height: m.islandSize.height + IslandController.padBottom)
+                    .background(Color(white: 0.25))
+                Text(label).font(.system(size: 10)).foregroundStyle(.white.opacity(0.7))
+            }
+        }
+        let notch = CGSize(width: 185, height: 32)
+        let sheet = VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 14) {
+                cell(.collapsed, label: "Collapsed")
+                cell(.hover, label: "Hover")
+                cell(.alert, label: "Alert")
+            }
+            HStack(alignment: .top, spacing: 14) {
+                cell(.collapsed, notch: notch, label: "Collapsed · notch")
+                cell(.hover, notch: notch, label: "Hover · notch")
+            }
+            HStack(alignment: .top, spacing: 14) {
+                cell(.expanded, pinned: true, label: "Expanded · pinned")
+                cell(.expanded, notch: notch, label: "Expanded · notch")
+            }
+        }
+        .padding(14)
+        .background(Color(white: 0.16))
+        .environment(\.colorScheme, .dark)
+
+        let renderer = ImageRenderer(content: sheet)
+        renderer.scale = 2
+        guard let cg = renderer.cgImage,
+              let png = NSBitmapImageRep(cgImage: cg).representation(using: .png, properties: [:])
+        else { throw CocoaError(.fileWriteUnknown) }
+        try png.write(to: url)
     }
 }

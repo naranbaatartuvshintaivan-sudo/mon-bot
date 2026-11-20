@@ -18,6 +18,17 @@ enum DeskBotMain {
             }
         }
 
+        if let i = args.firstIndex(of: "--render-island"), i + 1 < args.count {
+            do {
+                try IslandSheetExporter.export(to: URL(fileURLWithPath: args[i + 1]))
+                print("Wrote \(args[i + 1])")
+                exit(0)
+            } catch {
+                FileHandle.standardError.write(Data("render failed: \(error)\n".utf8))
+                exit(1)
+            }
+        }
+
         let app = NSApplication.shared
         // Unbundled executable-д LSUIElement үйлчлэхгүй тул энд тавина (Dock icon, app menu-гүй).
         app.setActivationPolicy(.accessory)
@@ -47,7 +58,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         brain.onExpression = { [unowned self] e in face.setExpression(e) }
         brain.isCursorNear = { [unowned self] in face.isCursorNear }
         face.setExpression(brain.current)
-        island.onClick = { [unowned self] in
+        island.onFaceClick = { [unowned self] in
             brain.click()
             face.pulse()
         }
@@ -55,14 +66,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         cursor = CursorTracker()
         cursor.onMove = { [unowned self] p in face.setCursor(screen: p, faceCenter: island.faceCenterOnScreen) }
         cursor.onClick = { [unowned self] p in
-            guard settings.reactToGlobalClicks else { return }
+            let canGlance = island.globalClick(at: p) // гадна click → Expanded хаагдана (pin-гүй бол)
+            guard settings.reactToGlobalClicks, canGlance else { return }
             face.glance(screen: p, faceCenter: island.faceCenterOnScreen)
         }
 
         statusItem = StatusItemController(
-            isIslandVisible: { [unowned self] in island.isVisible },
-            toggleIsland: { [unowned self] in island.toggleVisible() },
-            resetPosition: { [unowned self] in island.resetPosition() },
+            settings: settings,
+            island: island,
             currentExpression: { [unowned self] in brain.current },
             previewExpression: { [unowned self] e in
                 brain.preview(e)
