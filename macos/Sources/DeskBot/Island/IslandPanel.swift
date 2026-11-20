@@ -24,6 +24,14 @@ final class IslandPanel: NSPanel {
         becomesKeyOnlyIfNeeded = true
     }
 
+    /// Island дээр left click (focus/activation-гүйгээр). M3-д control center нээхэд ашиглана.
+    var onClick: (() -> Void)?
+
+    override func sendEvent(_ event: NSEvent) {
+        if event.type == .leftMouseDown { onClick?() }
+        super.sendEvent(event)
+    }
+
     override var canBecomeKey: Bool { allowsKey }
     override var canBecomeMain: Bool { false }
 }

@@ -19,6 +19,12 @@ public enum EyeMath {
         dt <= 0 ? 0 : 1 - exp(-rate * dt)
     }
 
+    /// `current`-ийг `target` руу frame-rate-аас хамааралгүй ойртуулна: current += (target − current)·(1 − e^(−rate·dt)).
+    public static func smoothToward(_ current: SIMD2<Double>, _ target: SIMD2<Double>,
+                                    dt: Double, rate: Double) -> SIMD2<Double> {
+        current + (target - current) * smoothFactor(dt: dt, rate: rate)
+    }
+
     public static func easeOutCubic(_ t: Double) -> Double {
         let u = 1 - min(max(t, 0), 1)
         return 1 - u * u * u

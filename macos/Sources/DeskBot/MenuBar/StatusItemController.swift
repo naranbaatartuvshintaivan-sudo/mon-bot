@@ -1,4 +1,5 @@
 import AppKit
+import DeskBotCore
 
 /// Menu bar icon (хар pill + 2 cyan нүд, code-оор зурсан) ба цэс.
 @MainActor
@@ -8,13 +9,21 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let toggleIsland: () -> Void
     private let resetPosition: () -> Void
     private let quit: () -> Void
+    private let currentExpression: () -> RobotExpression
+    private let previewExpression: (RobotExpression) -> Void
     private let toggleItem = NSMenuItem(title: "Hide DeskBot", action: nil, keyEquivalent: "")
+    private let expressionMenu = NSMenu(title: "Expression")
 
     init(isIslandVisible: @escaping () -> Bool, toggleIsland: @escaping () -> Void,
-         resetPosition: @escaping () -> Void, quit: @escaping () -> Void) {
+         resetPosition: @escaping () -> Void,
+         currentExpression: @escaping () -> RobotExpression,
+         previewExpression: @escaping (RobotExpression) -> Void,
+         quit: @escaping () -> Void) {
         self.isIslandVisible = isIslandVisible
         self.toggleIsland = toggleIsland
         self.resetPosition = resetPosition
+        self.currentExpression = currentExpression
+        self.previewExpression = previewExpression
         self.quit = quit
         super.init()
 
@@ -28,11 +37,30 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.addItem(toggleItem)
         menu.addItem(make("Reset Position", #selector(onReset)))
         menu.addItem(.separator())
+
+        // Debug: бүх expression-ийг UserClick layer-ээр 3с түр тавьж турших.
+        expressionMenu.delegate = self
+        for e in RobotExpression.allCases {
+            let m = make(e.rawValue, #selector(onExpression(_:)))
+            m.representedObject = e.rawValue
+            expressionMenu.addItem(m)
+        }
+        let expressionItem = NSMenuItem(title: "Expression", action: nil, keyEquivalent: "")
+        expressionItem.submenu = expressionMenu
+        menu.addItem(expressionItem)
+        menu.addItem(.separator())
         menu.addItem(make("Quit DeskBot", #selector(onQuit), key: "q"))
         item.menu = menu
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
+        if menu === expressionMenu {
+            let current = currentExpression().rawValue
+            for item in menu.items {
+                item.state = (item.representedObject as? String) == current ? .on : .off
+            }
+            return
+        }
         toggleItem.title = isIslandVisible() ? "Hide DeskBot" : "Show DeskBot"
     }
 
@@ -45,6 +73,10 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     @objc private func onToggle() { toggleIsland() }
     @objc private func onReset() { resetPosition() }
     @objc private func onQuit() { quit() }
+    @objc private func onExpression(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String, let e = RobotExpression(rawValue: raw) else { return }
+        previewExpression(e)
+    }
 
     /// 22×14pt: хар pill (цагаан хүрээтэй — хар menu bar дээр ч харагдана) + 2 cyan нүд.
     static func makeIcon() -> NSImage {

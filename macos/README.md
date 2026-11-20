@@ -16,8 +16,8 @@ scripts/test.sh          # swift-testing; CLT дээр Testing.framework-ийн 
 | Milestone | Статус |
 |---|---|
 | M0 — SwiftPM skeleton, Core порт, 23 test | ✅ |
-| M1 — Island NSPanel, menu bar, settings persist | ⏳ |
-| M2 — RobotFaceView | ⏳ |
+| M1 — Island NSPanel, menu bar, settings persist | ✅ |
+| M2 — RobotFaceView (15 expression, анивчилт, cursor харц, click reaction, theme) | ✅ |
 | M3 — Hover/Expanded/Pin/Auto-hide/drag | ⏳ |
 | M4 — Home, Reminders, Face, Settings, system monitor, hotkey, login item, game mode | ⏳ |
 | M5 — Music, `scripts/bundle.sh` → DeskBot.app | ⏳ |
@@ -29,3 +29,8 @@ scripts/test.sh          # swift-testing; CLT дээр Testing.framework-ийн 
 - `AppSettings` нь `@Observable` class; `StartWithWindows` → `startAtLogin`, `MonitorDeviceName` → `monitorID`. JSON key camelCase, дутуу key → default.
 - `JSONFileStore.saveAtomic` нь tmp → `replaceItemAt`; эвдэрсэн файл → `*.corrupt-yyyyMMddHHmmss` + default.
 - Тоон утгууд (FaceLibrary, priority, clamp хязгаар) C#-тай яг ижил.
+
+## Debug
+- `.build/debug/DeskBot --render-faces faces.png` — бүх expression-ийг offscreen PNG болгоно (эрх шаардахгүй).
+- `DESKBOT_DEBUG_FACE=1 .build/debug/DeskBot` — 5с тутам face төлөвийг `~/Library/Logs/DeskBot/deskbot.log`-д бичнэ.
+- Menu bar → Expression — expression бүрийг 3с туршина.

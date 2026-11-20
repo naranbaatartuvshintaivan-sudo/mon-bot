@@ -10,10 +10,12 @@ final class IslandModel {
     var layout = IslandLayout(frame: .zero, notchInIsland: nil)
     var cornerRadius: CGFloat = 18
     var simulatedNotch = false
+    /// false бол face animation зогсоно (CPU хэмнэнэ).
+    var faceVisible = false
 }
 
 /// Island panel-ийг үүсгэж, дэлгэц/тохиргоо өөрчлөгдөхөд байрлалыг дахин тооцно.
-/// M1: зөвхөн Collapsed. Hover/Expanded/Alert/drag — M3.
+/// M1–M2: зөвхөн Collapsed (robot нүүртэй). Hover/Expanded/Alert/drag — M3.
 @MainActor
 final class IslandController {
     private let settings: AppSettings
@@ -24,10 +26,13 @@ final class IslandController {
     private(set) var isVisible = false
     var layout: IslandLayout { model.layout }
 
-    init(settings: AppSettings) {
+    private let face: FaceDriver
+
+    init(settings: AppSettings, face: FaceDriver) {
         self.settings = settings
+        self.face = face
         panel = IslandPanel(contentRect: NSRect(x: 0, y: 0, width: 190, height: 34))
-        let host = NSHostingView(rootView: IslandView(model: model))
+        let host = NSHostingView(rootView: IslandView(model: model, face: face))
         host.sizingOptions = [] // panel-ийн хэмжээг бид удирдана
         panel.contentView = host
 
@@ -40,14 +45,26 @@ final class IslandController {
         relayout()
     }
 
+    /// Face-ийн төв (Cocoa screen координат, y дээшээ). Face нь island-ийн төвд байрлана.
+    var faceCenterOnScreen: NSPoint { NSPoint(x: panel.frame.midX, y: panel.frame.midY) }
+
+    /// Robot (island) дээр click хийхэд.
+    var onClick: (() -> Void)? {
+        get { panel.onClick }
+        set { panel.onClick = newValue }
+    }
+
     func show() {
         isVisible = true
         relayout()
+        face.resetClock()
+        model.faceVisible = true
         panel.orderFrontRegardless()
     }
 
     func hide() {
         isVisible = false
+        model.faceVisible = false
         panel.orderOut(nil)
     }
 
