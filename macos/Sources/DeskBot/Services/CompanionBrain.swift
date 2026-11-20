@@ -7,7 +7,7 @@ import DeskBotCore
 /// - Reminder 5 мин дутуу → ActiveTask Reminder 3с; цаг болсон → Reminder (Done/Snooze хүртэл)
 /// - Battery ≤ 15% & цэнэглээгүй → SystemStatus LowBattery
 /// - 5 мин idle → Ambient Sleepy; click → Surprised 450ms; Face tab preview → Preview (45) 3с
-/// Music — M5.
+/// - Spotify / Apple Music тоглож байна → Music (20); зогсвол цэвэрлэнэ.
 @MainActor
 final class CompanionBrain {
     static let idleSleepSeconds: TimeInterval = 5 * 60
@@ -71,6 +71,14 @@ final class CompanionBrain {
     /// C# SyncReminderLayer: дууссан/snooze хийсэн бол Reminder layer-ийг цэвэрлэнэ.
     func syncReminders(hasFiredPending: Bool) {
         if !hasFiredPending { machine.clear(.reminder, now: .now) }
+    }
+
+    func media(_ status: MediaStatus) {
+        if MediaPolicy.wantsMusicExpression(status) {
+            machine.set(.music, .music, now: .now)
+        } else {
+            machine.clear(.music, now: .now)
+        }
     }
 
     func battery(_ b: BatteryState) {

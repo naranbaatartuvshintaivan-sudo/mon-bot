@@ -6,7 +6,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 BUNDLE_ID="dev.deskbot.DeskBot"          # Log.swift-ийн os.Logger subsystem-тэй ижил
-VERSION="${DESKBOT_VERSION:-0.2.0}"
+VERSION="${DESKBOT_VERSION:-0.1.0}"
 BUILD_NUMBER="${DESKBOT_BUILD:-$(git rev-list --count HEAD 2>/dev/null || echo 1)}"
 APP="build/DeskBot.app"
 
@@ -33,6 +33,8 @@ cat > "$APP/Contents/Info.plist" <<EOF
     <key>LSMinimumSystemVersion</key>        <string>14.0</string>
     <key>LSUIElement</key>                   <true/>
     <key>NSHighResolutionCapable</key>       <true/>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>DeskBot reads the current track from Spotify or Apple Music and sends play/pause, next and previous. Nothing else is read or sent.</string>
 </dict>
 </plist>
 EOF

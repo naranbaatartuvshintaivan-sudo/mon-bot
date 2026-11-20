@@ -47,7 +47,7 @@ struct ControlCenterView: View {
     private var content: some View {
         switch model.selectedTab {
         case .home: HomePanel(deps: deps, openReminders: { select(.reminders) })
-        case .music: MusicUnavailable()
+        case .music: MusicPanel(media: deps.media)
         case .reminders: RemindersPanel(deps: deps)
         case .face: FacePanel(deps: deps, visible: model.mode == .expanded)
         case .settings: SettingsPanel(deps: deps)
@@ -57,19 +57,6 @@ struct ControlCenterView: View {
     private func select(_ tab: ControlTab) {
         model.selectedTab = tab
         deps.settings.lastTab = tab.rawValue
-    }
-}
-
-/// Music — M5 (Spotify / Music.app). Хуурамч дуу харуулахгүй.
-private struct MusicUnavailable: View {
-    var body: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "music.note").font(.system(size: 28, weight: .light)).foregroundStyle(CC.muted)
-            Text("Music is not available yet").font(.system(size: 15, weight: .semibold)).foregroundStyle(CC.text)
-            Caption("Spotify and Music.app control arrives in M5. macOS has no public now-playing API, so other players will show as unavailable.")
-                .multilineTextAlignment(.center).frame(maxWidth: 360)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

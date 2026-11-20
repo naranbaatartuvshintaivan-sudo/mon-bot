@@ -64,19 +64,21 @@ struct HomePanel: View {
         .contentShape(Rectangle())
     }
 
-    /// Media service M5-д. Хуурамч дуу харуулахгүй.
+    /// Spotify / Apple Music. Байхгүй бол бодит шалтгаан (хуурамч дуу харуулахгүй).
     private var nowPlaying: some View {
         Card {
-            HStack(spacing: 11) {
-                Image(systemName: "music.note")
-                    .foregroundStyle(CC.muted)
-                    .frame(width: 46, height: 46)
-                    .background(RoundedRectangle(cornerRadius: 11).fill(Color.white.opacity(0.08)))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Now playing unavailable").font(.system(size: 13, weight: .semibold)).foregroundStyle(CC.secondary)
-                    Caption("Spotify / Music support arrives in M5")
+            if let n = deps.media.status.nowPlaying {
+                HStack(spacing: 11) {
+                    Artwork(image: deps.media.artwork, size: 46)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(n.title).font(.system(size: 13, weight: .semibold)).foregroundStyle(CC.text).lineLimit(1)
+                        Caption(n.artist.isEmpty ? n.player.displayName : n.artist).lineLimit(1)
+                    }
+                    Spacer(minLength: 4)
+                    Controls(media: deps.media, isPlaying: n.isPlaying, size: 26)
                 }
-                Spacer(minLength: 0)
+            } else {
+                MediaUnavailableView(status: deps.media.status)
             }
         }
     }

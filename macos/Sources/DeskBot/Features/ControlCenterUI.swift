@@ -7,6 +7,7 @@ struct ControlCenterDeps {
     let settings: AppSettings
     let reminders: ReminderService
     let system: SystemMonitor
+    let media: MediaService
     let expression: ExpressionState
     /// Face tab-ийн жижиг preview (island-ийн face-тэй ижил settings, тусдаа animator).
     let previewFace: FaceDriver

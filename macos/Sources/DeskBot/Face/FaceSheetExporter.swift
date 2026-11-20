@@ -97,11 +97,23 @@ enum IslandSheetExporter {
         system.sample()
         let expression = ExpressionState()
         let previewFace = FaceDriver(settings: settings, random: { 0.5 })
-        let deps = ControlCenterDeps(settings: settings, reminders: reminders, system: system,
+        let media = MediaService() // start() хийхгүй — export үед ямар ч app руу AppleScript илгээхгүй
+        let deps = ControlCenterDeps(settings: settings, reminders: reminders, system: system, media: media,
                                      expression: expression, previewFace: previewFace)
 
+        // Layout шалгах mock — зөвхөн энэ PNG-д. Бодит app хэзээ ч хуурамч дуу харуулахгүй.
+        let playing = MediaService()
+        playing.setStatusForExport(.playing(NowPlaying(player: .spotify, title: "Midnight City (export mock)",
+                                                        artist: "M83", album: "Hurry Up, We're Dreaming",
+                                                        position: 83, duration: 243, isPlaying: true)))
+        let denied = MediaService()
+        denied.setStatusForExport(.permissionNeeded(.music))
+
         func cell(_ mode: IslandMode, notch: CGSize? = nil, pinned: Bool = false, tab: ControlTab = .home,
-                  label: String) -> some View {
+                  label: String, media m: MediaService? = nil) -> some View {
+            var deps = deps
+            if let m { deps = ControlCenterDeps(settings: settings, reminders: reminders, system: system, media: m,
+                                                expression: expression, previewFace: previewFace) }
             let m = IslandModel()
             m.mode = mode
             m.islandSize = sizing.size(mode, notch: notch)
@@ -139,6 +151,15 @@ enum IslandSheetExporter {
             HStack(alignment: .top, spacing: 14) {
                 cell(.expanded, tab: .face, label: "Face")
                 cell(.expanded, notch: notch, tab: .settings, label: "Settings · notch")
+            }
+            HStack(alignment: .top, spacing: 14) {
+                cell(.expanded, tab: .music, label: "Music · no player (honest state)")
+                cell(.expanded, tab: .music, label: "Music · playing (EXPORT MOCK)", media: playing)
+            }
+            HStack(alignment: .top, spacing: 14) {
+                cell(.hover, label: "Hover · playing (EXPORT MOCK)", media: playing)
+                cell(.hover, notch: notch, label: "Hover · notch · playing (EXPORT MOCK)", media: playing)
+                cell(.expanded, tab: .music, label: "Music · permission needed", media: denied)
             }
         }
         .padding(14)

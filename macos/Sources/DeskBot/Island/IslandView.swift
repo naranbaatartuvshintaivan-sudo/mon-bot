@@ -45,7 +45,7 @@ struct IslandView: View {
             VStack(spacing: 0) {
                 header.frame(height: model.headerHeight)
                 if model.mode == .hover, model.notchSize != nil {
-                    HStack { ClockLabel(); Spacer() }
+                    HStack { hoverInfo; Spacer() }
                         .padding(.horizontal, 16)
                         .frame(height: IslandSizing.notchInfoRowHeight)
                         .transition(.opacity)
@@ -66,6 +66,16 @@ struct IslandView: View {
         .environment(\.colorScheme, .dark)
     }
 
+    /// Hover: тоглож байвал "♪ Title · Artist", эс бөгөөс цаг.
+    @ViewBuilder
+    private var hoverInfo: some View {
+        if let n = deps.media.status.nowPlaying, n.isPlaying {
+            HoverNowPlaying(nowPlaying: n)
+        } else {
+            ClockLabel()
+        }
+    }
+
     @ViewBuilder
     private var header: some View {
         let faceH = max(0, model.headerHeight - 2 * Self.faceMarginY)
@@ -75,8 +85,11 @@ struct IslandView: View {
         } else {
             ZStack {
                 if model.mode != .collapsed {
-                    HStack { ClockLabel(); Spacer() }
+                    // Hover: тоглож байвал дуу (face-ийн зүүн талд багтаана), Expanded / Alert: цаг.
+                    HStack { (model.mode == .hover ? AnyView(hoverInfo) : AnyView(ClockLabel())); Spacer(minLength: 0) }
                         .padding(.leading, 16)
+                        .frame(width: max(0, (model.islandSize.width - model.faceWidth) / 2 - 4), alignment: .leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .transition(.opacity)
                 }
                 FaceSlot(driver: face, notchWidth: nil, paused: model.facePaused)

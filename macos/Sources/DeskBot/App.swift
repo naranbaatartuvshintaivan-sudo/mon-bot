@@ -49,6 +49,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: StatusItemController!
     private var reminders: ReminderService!
     private var system: SystemMonitor!
+    private var media: MediaService!
     private var hotkey: HotkeyService!
     private var gameMode: GameModeService!
     private let expression = ExpressionState()
@@ -65,11 +66,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         previewFace = FaceDriver(settings: settings)
         reminders = ReminderService()
         system = SystemMonitor()
+        media = MediaService()
         hotkey = HotkeyService()
         gameMode = GameModeService()
         brain = CompanionBrain(settings: settings)
 
-        var deps = ControlCenterDeps(settings: settings, reminders: reminders, system: system,
+        var deps = ControlCenterDeps(settings: settings, reminders: reminders, system: system, media: media,
                                      expression: expression, previewFace: previewFace)
         deps.preview = { [unowned self] e in brain.preview(e) }
         deps.applyHotkey = { [unowned self] text in applyHotkey(text) }
@@ -111,6 +113,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         system.onUpdate = { [unowned self] in brain.battery(system.battery) }
+        media.onChange = { [unowned self] status in brain.media(status) }
 
         hotkey.onPressed = { [unowned self] in island.toggleControlCenter() }
 
@@ -142,6 +145,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         brain.start()
         system.start()
         reminders.start()
+        media.start()
         if let err = applyHotkey(settings.hotkey) { Log.error("Hotkey: \(err)") }
         gameMode.setEnabled(settings.gameModeAutoHide)
         reconcileLoginItem(settings)
@@ -222,6 +226,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         brain.stop()
         system.stop()
         reminders.stop()
+        media.stop()
         hotkey.unregister()
         gameMode.setEnabled(false)
         settingsStore.flush()
