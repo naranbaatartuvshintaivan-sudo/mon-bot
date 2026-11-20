@@ -13,9 +13,9 @@ public enum IslandBackground: String, CaseIterable, Codable, Sendable {
 /// debounce-тэй хадгалагдана. JSON: ~/Library/Application Support/DeskBot/settings.json
 @Observable
 public final class AppSettings: Codable {
-    public static let defaultHotkey = "Option+Space"
-    /// v1 (C#-тай ижил) default — schema 2 руу шилжихэд хэрэглэгч өөрчлөөгүй бол шинэ default болгоно.
-    static let legacyDefaultHotkey = "Ctrl+Alt+Space"
+    /// ⌃⌥Space. (⌥Space нь text field-д nbsp бичдэг тул хориотой — `HotkeySpec.ParseError.typesCharacter`.)
+    /// v1-ийн "Ctrl+Alt+Space"-тэй ижил хослол тул migration хэрэггүй.
+    public static let defaultHotkey = "Ctrl+Option+Space"
     public static let defaultColor = "#33E1FF"
     public static let currentSchema = 2
 
@@ -157,9 +157,7 @@ public final class AppSettings: Codable {
         hotkey = try d(.hotkey, hotkey)
         lastTab = try d(.lastTab, lastTab)
 
-        // Migration (хуучин файл эвдрэхгүй, дутуу key → default):
-        // v1 → v2: C#-ийн default hotkey-г хэрэглэгч өөрчлөөгүй бол macOS-ийн шинэ default (⌥Space).
-        if schemaVersion < 2 && hotkey == Self.legacyDefaultHotkey { hotkey = Self.defaultHotkey }
+        // Хуучин файл эвдрэхгүй: дутуу key → default. Хориотой/буруу hotkey-г `sanitize()` default болгоно.
         schemaVersion = max(schemaVersion, Self.currentSchema)
     }
 

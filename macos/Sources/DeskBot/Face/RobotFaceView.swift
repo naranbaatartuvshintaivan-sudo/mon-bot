@@ -208,7 +208,7 @@ final class RobotFaceNSView: NSView {
             driver.resetClock() // дахин эхлэхэд том dt үсрэлт гаргахгүй
             return
         }
-        if let interval = demand.interval(performanceMode: perf), demand != .active {
+        if let interval = demand.interval(performanceMode: perf), demand < .gentle {
             let t = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
                 MainActor.assumeIsolated { self?.frame(nil) }
             }
@@ -217,7 +217,8 @@ final class RobotFaceNSView: NSView {
             timer = t
         } else {
             let l = displayLink(target: self, selector: #selector(frame(_:)))
-            if perf { l.preferredFrameRateRange = CAFrameRateRange(minimum: 24, maximum: 30, preferred: 30) }
+            // gentle (idle wander) эсвэл performance mode → 30fps, vsync-тэй (Timer-ээс гөлгөр).
+            if perf || demand == .gentle { l.preferredFrameRateRange = CAFrameRateRange(minimum: 24, maximum: 30, preferred: 30) }
             l.add(to: .main, forMode: .common)
             link = l
         }

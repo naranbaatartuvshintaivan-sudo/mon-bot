@@ -327,17 +327,17 @@ enum FaceRenderer {
         if o.contains(.notes) {
             for i in 0..<2 {
                 let f = (time * 0.6 + Double(i) * 0.5).truncatingRemainder(dividingBy: 1)
-                drawGlyph(i == 0 ? "♪" : "♫", left - Double(i) * baseW * 0.3, H * 0.75 - f * H * 0.6,
+                drawGlyph(cg, i == 0 ? "♪" : "♫", left - Double(i) * baseW * 0.3, H * 0.75 - f * H * 0.6,
                           baseH * 0.48, col.withAlpha(UInt8(255 * (1 - f))))
             }
         }
         if o.contains(.question) {
-            drawGlyph("?", right, H * 0.32 + sin(time * 3) * H * 0.04, baseH * 0.62, col)
+            drawGlyph(cg, "?", right, H * 0.32 + sin(time * 3) * H * 0.04, baseH * 0.62, col)
         }
         if o.contains(.zzz) {
             for i in 0..<3 {
                 let f = (time * 0.4 + Double(i) / 3).truncatingRemainder(dividingBy: 1)
-                drawGlyph("z", right + f * baseW * 0.5, H * 0.6 - f * H * 0.5, baseH * (0.25 + f * 0.3),
+                drawGlyph(cg, "z", right + f * baseW * 0.5, H * 0.6 - f * H * 0.5, baseH * (0.25 + f * 0.3),
                           col.withAlpha(UInt8(230 * (1 - f))))
             }
         }
@@ -350,7 +350,7 @@ enum FaceRenderer {
             tri.addLine(to: CGPoint(x: c.x - s * 0.55, y: c.y + s * 0.45))
             tri.closeSubpath()
             fill(cg, tri, RGBA(argb: FaceLibrary.amber))
-            drawGlyph("!", c.x, c.y + s * 0.05, s * 0.7, RGBA(r: 0x05, g: 0x06, b: 0x08))
+            drawGlyph(cg, "!", c.x, c.y + s * 0.05, s * 0.7, RGBA(r: 0x05, g: 0x06, b: 0x08))
         }
     }
 
@@ -365,15 +365,49 @@ enum FaceRenderer {
         fill(cg, g, c)
     }
 
-    /// C#: Segoe UI Bold FormattedText, хайрцгийн төвд. macOS: system bold.
-    /// Одоогийн NSGraphicsContext (flipped) руу зурна.
-    private static func drawGlyph(_ text: String, _ x: Double, _ y: Double, _ size: Double, _ c: RGBA) {
-        guard size >= 1 else { return }
-        let str = NSAttributedString(string: text, attributes: [
-            .font: NSFont.systemFont(ofSize: size, weight: .bold),
-            .foregroundColor: NSColor(cgColor: c.cgColor) ?? .white,
-        ])
-        let sz = str.size()
-        str.draw(at: NSPoint(x: x - sz.width / 2, y: y - sz.height / 2))
+    /// C#: Segoe UI Bold FormattedText, төвд нь. Glyph-ийн CGPath-ийг cache-ээс авч scale хийнэ —
+    /// NSAttributedString-ийн typesetting frame бүр хийх нь (zzz, ♪) хамгийн үнэтэй хэсэг байсан.
+    private static func drawGlyph(_ cg: CGContext, _ text: String, _ x: Double, _ y: Double, _ size: Double, _ c: RGBA) {
+        guard size >= 1, let g = GlyphCache.glyph(text) else { return }
+        let k = size / GlyphCache.unitSize
+        // Font координат y дээшээ → flipped context-д y-ийг эргүүлнэ. Төв = typographic box-ийн төв.
+        var t = CGAffineTransform(translationX: x, y: y).scaledBy(x: k, y: -k)
+            .translatedBy(x: -g.advance / 2, y: -g.boxMidY)
+        guard let path = g.path.copy(using: &t) else { return }
+        fill(cg, path, c)
+    }
+}
+
+/// Overlay-ийн тэмдэгтүүдийн (z ♪ ♫ ? !) path — system bold, шаардлагатай бол fallback font.
+/// Thread-safe (lock) — render нь main thread дээр, export ч бас дуудаж болно.
+enum GlyphCache {
+    static let unitSize: Double = 100
+
+    struct Glyph: @unchecked Sendable { // CGPath immutable
+        let path: CGPath
+        let advance: Double
+        /// NSAttributedString-ийн мөрийн хайрцгийн (descent…ascent) төв — өмнөх байрлалтай ижил.
+        let boxMidY: Double
+    }
+
+    nonisolated(unsafe) private static var cache: [String: Glyph] = [:]
+    private static let lock = NSLock()
+
+    static func glyph(_ text: String) -> Glyph? {
+        lock.lock()
+        defer { lock.unlock() }
+        if let g = cache[text] { return g }
+        let base = NSFont.systemFont(ofSize: unitSize, weight: .bold) as CTFont
+        let font = CTFontCreateForString(base, text as CFString, CFRange(location: 0, length: (text as NSString).length))
+        let chars = Array(text.utf16)
+        var glyphs = [CGGlyph](repeating: 0, count: chars.count)
+        guard CTFontGetGlyphsForCharacters(font, chars, &glyphs, chars.count), let glyph = glyphs.first,
+              let path = CTFontCreatePathForGlyph(font, glyph, nil) else { return nil }
+        var adv = CGSize.zero
+        CTFontGetAdvancesForGlyphs(font, .horizontal, [glyph], &adv, 1)
+        let g = Glyph(path: path, advance: adv.width,
+                      boxMidY: (CTFontGetAscent(font) - CTFontGetDescent(font)) / 2)
+        cache[text] = g
+        return g
     }
 }

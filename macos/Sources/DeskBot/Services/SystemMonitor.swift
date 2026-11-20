@@ -24,6 +24,8 @@ final class SystemMonitor {
 
     func start() {
         sample()
+        // CPU % нь хоёр дээжийн зөрүү — 1с-ийн дараа нэг удаа урьдчилан хэмжинэ (Home "measuring…" харагдахгүй).
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in self?.sample() }
         schedule(Self.slowInterval)
     }
 

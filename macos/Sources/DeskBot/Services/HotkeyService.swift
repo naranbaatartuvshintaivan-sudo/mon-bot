@@ -61,6 +61,7 @@ final class HotkeyService {
         switch error as? HotkeySpec.ParseError {
         case .empty: "Хослол хоосон байна."
         case .needsModifier: "⌃ ⌥ ⇧ ⌘-ийн аль нэгийг нэмнэ үү (F-key-ээс бусад)."
+        case .typesCharacter: "⌥/⇧ + товч нь тэмдэгт бичдэг (⌥Space = nbsp) — ⌃ эсвэл ⌘ нэмнэ үү."
         case .unknownModifier(let m): "Үл мэдэгдэх modifier: \(m)"
         case .unknownKey(let k): "Үл мэдэгдэх товч: \(k)"
         case nil: error.localizedDescription

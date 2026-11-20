@@ -10,7 +10,7 @@ public struct FaceAnimatorSettings: Equatable, Sendable {
     public var animationSpeed = 1.0
     /// Glitch theme — RGB split burst хуваарь ажиллана.
     public var glitchTheme = false
-    /// Тасралтгүй хөдөлдөг theme (Matrix бороо) — үргэлж бүтэн fps.
+    /// Тасралтгүй хөдөлдөг theme (Matrix бороо) — үргэлж дор хаяж 30fps (gentle).
     public var continuousTheme = false
 
     public init(followCursor: Bool = true, reducedMotion: Bool = false, blinkFrequency: Double = 1,
@@ -30,7 +30,9 @@ public enum FaceFrameDemand: Int, Comparable, Sendable {
     case idle
     /// Удаан хөвөх overlay (zzz, ♪) → 20Hz.
     case ambient
-    /// Шилжилт, анивчилт, харц хөдөлж байна, хурдан overlay → бүтэн fps.
+    /// Өөрөө эргэн тойрноо харах (idle wander) — хэрэглэгчийн оролтгүй, удаан хөдөлгөөн → 30fps.
+    case gentle
+    /// Шилжилт, анивчилт, cursor дагах, хурдан overlay → бүтэн fps.
     case active
 
     public static func < (a: Self, b: Self) -> Bool { a.rawValue < b.rawValue }
@@ -40,6 +42,7 @@ public enum FaceFrameDemand: Int, Comparable, Sendable {
         switch self {
         case .idle: 1.0 / 10
         case .ambient: 1.0 / 20
+        case .gentle: 1.0 / 30
         case .active: performanceMode ? 1.0 / 30 : nil
         }
     }
@@ -205,19 +208,32 @@ public struct FaceAnimator {
 
     /// Энэ төлөвт ямар хурдаар зурах хэрэгтэй вэ.
     public var frameDemand: FaceFrameDemand {
-        if transT < 1 || blink.isBlinking || clickPulse > 0 || isGlitching || settings.continuousTheme { return .active }
+        if transT < 1 || blink.isBlinking || clickPulse > 0 || isGlitching { return .active }
         if abs(notice - (isCursorNear ? 1 : 0)) > Self.noticeSettle { return .active }
-        // Ойрын event-ийг idle frame-ийн хооронд алдахгүйн тулд урьдчилан бүтэн fps руу шилжинэ.
+        // Ойрын event-ийг idle frame-ийн хооронд алдахгүйн тулд урьдчилан шилжинэ.
         let soon = Self.maxIdleFrameDt
         if BlinkScheduler.canBlink(expression) && blink.nextBlink - time < soon { return .active }
-        if isWandering && nextIdleAction - time < soon { return .active }
         if settings.glitchTheme && !settings.reducedMotion && nextGlitch - time < soon { return .active }
-        let d = look - lookTarget
-        if (d * d).sum().squareRoot() > Self.lookSettle { return .active }
         let p = to
         if p.bounce > 0.001 && !settings.reducedMotion { return .active }
-        if !p.overlay.isEmpty { return Self.slowOverlays.isSuperset(of: p.overlay) ? .ambient : .active }
-        return .idle
+        if !p.overlay.isEmpty && !Self.slowOverlays.isSuperset(of: p.overlay) { return .active }
+
+        var demand: FaceFrameDemand = p.overlay.isEmpty ? .idle : .ambient
+        // Matrix бороо — тасралтгүй, гэхдээ хэрэглэгчийн оролтоос биш → 30fps.
+        if settings.continuousTheme { demand = .gentle }
+        let d = look - lookTarget
+        let lookMoving = (d * d).sum().squareRoot() > Self.lookSettle
+        if lookMoving { demand = max(demand, isSelfDrivenLook ? .gentle : .active) }
+        if isWandering && nextIdleAction - time < soon { demand = max(demand, .gentle) }
+        return demand
+    }
+
+    /// Харц хэрэглэгчийн оролтоос биш, robot өөрөө (idle wander эсвэл түүнээс буцах) хөдөлж байна.
+    /// Click glance болон expression-ийн харц (NewMessage, Sleepy) нь шилжилт тул бүтэн fps.
+    var isSelfDrivenLook: Bool {
+        guard isWandering else { return false }
+        if glanceTarget != nil && time < glanceUntil { return false }
+        return expression != .newMessage && expression != .sleepy
     }
 
     static func lookAt(_ p: SIMD2<Double>) -> SIMD2<Double> {

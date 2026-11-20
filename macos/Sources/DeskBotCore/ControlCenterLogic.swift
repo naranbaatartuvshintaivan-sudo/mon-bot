@@ -37,6 +37,9 @@ public struct HotkeySpec: Equatable, Sendable {
         case unknownModifier(String)
         /// F-key биш бол дор хаяж нэг modifier (эс бөгөөс энгийн бичихэд саад болно).
         case needsModifier
+        /// Зөвхөн ⌥ / ⇧ + энгийн товч нь тэмдэгт бичдэг (⌥Space = nbsp, ⌥E = ´) — global болговол
+        /// бүх app-д тэр тэмдэгтийг бичих боломжгүй болно. ⌃ эсвэл ⌘ нэмэх хэрэгтэй.
+        case typesCharacter
     }
 
     /// macOS ANSI keyCode (Carbon Events.h kVK_*).
@@ -75,6 +78,9 @@ public struct HotkeySpec: Equatable, Sendable {
         guard let code = keyCodes[key] else { throw ParseError.unknownKey(last) }
         let isFKey = key.count >= 2 && key.hasPrefix("F") && Int(key.dropFirst()) != nil
         if mods.isEmpty && !isFKey { throw ParseError.needsModifier }
+        let typingOnly = mods.isSubset(of: [.option, .shift])
+        let nonTyping: Set<String> = ["ESCAPE", "TAB", "RETURN"]
+        if typingOnly && !isFKey && !nonTyping.contains(key) { throw ParseError.typesCharacter }
         let display = key == "SPACE" ? "Space" : key == "RETURN" ? "Return" : key == "TAB" ? "Tab"
             : key == "ESCAPE" ? "Esc" : key
         return HotkeySpec(key: display, keyCode: code, modifiers: mods)

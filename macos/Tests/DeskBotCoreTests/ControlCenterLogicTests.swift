@@ -5,11 +5,12 @@ import Testing
 
 @Suite struct HotkeyTests {
     @Test func parsesCommonForms() throws {
-        let a = try HotkeySpec.parse("Option+Space")
+        let a = try HotkeySpec.parse("Ctrl+Option+Space")
         #expect(a.keyCode == 0x31)
-        #expect(a.modifiers == [.option])
-        #expect(a.modifiers.carbonMask == 0x800)
-        #expect(a.symbols == "⌥Space")
+        #expect(a.modifiers == [.control, .option])
+        #expect(a.modifiers.carbonMask == 0x1800)
+        #expect(a.symbols == "⌃⌥Space")
+        #expect(try HotkeySpec.parse(AppSettings.defaultHotkey) == a)
 
         let b = try HotkeySpec.parse("ctrl + alt + space")
         #expect(b.modifiers == [.control, .option])
@@ -24,15 +25,21 @@ import Testing
         #expect(try HotkeySpec.parse("F5").keyCode == 0x60) // F-key modifier-гүй болно
     }
 
-    @Test func rejectsBadInput() {
+    @Test func rejectsBadInput() throws {
         #expect(throws: HotkeySpec.ParseError.empty) { try HotkeySpec.parse("  ") }
         #expect(throws: HotkeySpec.ParseError.needsModifier) { try HotkeySpec.parse("Space") }
         #expect(throws: HotkeySpec.ParseError.unknownModifier("Hyper")) { try HotkeySpec.parse("Hyper+K") }
         #expect(throws: HotkeySpec.ParseError.unknownKey("Ö")) { try HotkeySpec.parse("Cmd+Ö") }
+        // ⌥Space = nbsp, ⌥E = ´, ⇧A = A — тэмдэгт бичдэг тул хориотой
+        #expect(throws: HotkeySpec.ParseError.typesCharacter) { try HotkeySpec.parse("Option+Space") }
+        #expect(throws: HotkeySpec.ParseError.typesCharacter) { try HotkeySpec.parse("⌥E") }
+        #expect(throws: HotkeySpec.ParseError.typesCharacter) { try HotkeySpec.parse("Shift+Option+K") }
+        #expect(try HotkeySpec.parse("Option+F3").modifiers == [.option])   // F-key бичихгүй
+        #expect(try HotkeySpec.parse("Option+Tab").keyCode == 0x30)
     }
 
     @Test func descriptionRoundTrips() throws {
-        for text in ["Option+Space", "Ctrl+Shift+F12", "Cmd+Option+7", "Ctrl+Esc"] {
+        for text in ["Ctrl+Option+Space", "Ctrl+Shift+F12", "Cmd+Option+7", "Ctrl+Esc"] {
             let spec = try HotkeySpec.parse(text)
             #expect(try HotkeySpec.parse(spec.description) == spec)
         }
@@ -40,10 +47,10 @@ import Testing
 }
 
 @Suite struct SettingsMigrationTests {
-    @Test func v1DefaultHotkeyMigratesButCustomStays() throws {
+    @Test func v1HotkeyIsAlreadyTheDefaultAndCustomStays() throws {
         let v1 = try JSONDecoder().decode(AppSettings.self,
-            from: Data(#"{"schemaVersion":1,"hotkey":"Ctrl+Alt+Space","theme":"Matrix"}"#.utf8))
-        #expect(v1.hotkey == AppSettings.defaultHotkey)
+            from: Data(#"{"schemaVersion":1,"hotkey":"Ctrl+Alt+Space","theme":"Matrix"}"#.utf8)).sanitize()
+        #expect(v1.hotkey == AppSettings.defaultHotkey) // Ctrl+Alt = Ctrl+Option — migration-гүй, normalize л
         #expect(v1.schemaVersion == AppSettings.currentSchema)
         #expect(v1.theme == .matrix)
         #expect(v1.lastTab == "Home") // шинэ key — хуучин файлд байхгүй → default
@@ -54,9 +61,14 @@ import Testing
 
         // v2 файлд Ctrl+Alt+Space гэж хэрэглэгч өөрөө тавьсан бол өөрчлөхгүй
         let v2 = try JSONDecoder().decode(AppSettings.self,
-            from: Data(#"{"schemaVersion":2,"hotkey":"Ctrl+Alt+Space","lastTab":"Face"}"#.utf8))
-        #expect(v2.hotkey == "Ctrl+Alt+Space")
+            from: Data(#"{"schemaVersion":2,"hotkey":"Cmd+Option+K","lastTab":"Face"}"#.utf8)).sanitize()
+        #expect(v2.hotkey == "Option+Cmd+K")
         #expect(v2.lastTab == "Face")
+
+        // M4 build-ийн хадгалсан ⌥Space (одоо хориотой) → default
+        let m4 = try JSONDecoder().decode(AppSettings.self,
+            from: Data(#"{"schemaVersion":2,"hotkey":"Option+Space"}"#.utf8)).sanitize()
+        #expect(m4.hotkey == AppSettings.defaultHotkey)
     }
 
     @Test func invalidHotkeyFallsBackAndValidIsNormalized() {
@@ -64,9 +76,9 @@ import Testing
         s.hotkey = "banana"
         s.sanitize()
         #expect(s.hotkey == AppSettings.defaultHotkey)
-        s.hotkey = "alt+space"
+        s.hotkey = "ctrl+alt+space"
         s.sanitize()
-        #expect(s.hotkey == "Option+Space")
+        #expect(s.hotkey == "Ctrl+Option+Space")
     }
 }
 

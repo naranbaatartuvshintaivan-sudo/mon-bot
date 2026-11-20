@@ -60,8 +60,24 @@ import Testing
         #expect(a.frameDemand == .active)
     }
 
-    @Test func matrixThemeAlwaysActive() {
-        let a = animator(FaceAnimatorSettings(continuousTheme: true))
+    @Test func idleWanderIsGentle30fps() {
+        // random 0.9 → wander 6с-д (0.6, 0.32) руу; анхны blink 1.5с, дараагийнх ≈7.14с
+        var a = FaceAnimator(random: { 0.9 })
+        run(&a, seconds: 5.7)
+        #expect(a.frameDemand == .idle)
+        run(&a, seconds: 0.2)                  // t≈5.9 — wander эхлэхийн өмнөх урьдчилсан сэрэлт
+        #expect(a.frameDemand == .gentle)
+        run(&a, seconds: 0.3)                  // t≈6.2 — нүд өөрөө хөдөлж байна
+        #expect(a.frameDemand == .gentle)
+        a.setCursor(dx: -300, dy: 0)           // хэрэглэгч cursor хөдөлгөв → дагах нь бүтэн fps
+        #expect(a.frameDemand == .active)
+        #expect(FaceFrameDemand.gentle.interval(performanceMode: false) == 1.0 / 30)
+    }
+
+    @Test func matrixRainIsGentleButBlinkStillFull() {
+        var a = animator(FaceAnimatorSettings(continuousTheme: true))
+        #expect(a.frameDemand == .gentle)
+        run(&a, seconds: 1.4)                  // blink 1.5с-д → бүтэн fps
         #expect(a.frameDemand == .active)
     }
 

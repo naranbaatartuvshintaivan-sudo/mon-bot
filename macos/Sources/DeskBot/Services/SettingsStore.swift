@@ -5,9 +5,12 @@ import DeskBotCore
 /// settings.json-ийг ачаалж, `@Observable` өөрчлөлт бүрд 500ms debounce-тэй atomic хадгална.
 @MainActor
 final class SettingsStore {
-    static let directory: URL = FileManager.default
-        .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        .appendingPathComponent("DeskBot", isDirectory: true)
+    /// `DESKBOT_DATA_DIR` — bench/туршилтад бодит settings, reminders-ийг хөндөхгүйн тулд.
+    static let directory: URL = ProcessInfo.processInfo.environment["DESKBOT_DATA_DIR"]
+        .map { URL(fileURLWithPath: $0, isDirectory: true) }
+        ?? FileManager.default
+            .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("DeskBot", isDirectory: true)
 
     let url: URL
     let settings: AppSettings

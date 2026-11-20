@@ -62,13 +62,13 @@ struct SettingsPanel: View {
 
                     SectionTitle("Global shortcut")
                     HStack(spacing: 6) {
-                        TextField("Option+Space", text: $hotkey).field().frame(width: 150).onSubmit(applyHotkey)
+                        TextField("Ctrl+Option+Space", text: $hotkey).field().frame(width: 150).onSubmit(applyHotkey)
                         SmallButton("Apply", action: applyHotkey)
                     }
                     if let hotkeyStatus {
                         Text(hotkeyStatus).font(.system(size: 11)).foregroundStyle(hotkeyOK ? CC.secondary : CC.danger)
                     }
-                    Caption("Toggles the control center. Examples: Option+Space, Ctrl+Shift+D, Cmd+Option+K.")
+                    Caption("Toggles the control center. Examples: Ctrl+Option+Space, Ctrl+Shift+D, Cmd+Option+K. ⌥/⇧-only combos are rejected — they type characters.")
 
                     SectionTitle("Data & privacy")
                     Caption("Settings and reminders stay on this Mac. DeskBot never reads the keyboard (the shortcut is registered with the system), never records the screen and sends nothing to any server. Mouse position is used only for the eye animation.")
