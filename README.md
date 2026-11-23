@@ -23,6 +23,19 @@ dotnet publish src/DeskBot.App -c Release -r win-x64 --self-contained true `
   -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish/win-x64
 ```
 
+### macOS (Swift, native)
+macOS 14+ (Apple Silicon), Command Line Tools хангалттай (Xcode шаардлагагүй).
+```bash
+cd macos
+swift build && scripts/test.sh               # 108 test
+scripts/bundle.sh                            # → build/DeskBot.app (ad-hoc sign)
+open build/DeskBot.app
+```
+- Menu bar icon → тохиргоо, **Quit**. Control center: `⌃⌥Space`.
+- Хөгжим: Spotify / Apple Music тоглож байхад анх удаа **Automation** зөвшөөрөл асууна (System Settings → Privacy & Security → Automation). Browser-ийн audio дэмжигдэхгүй.
+- Notarize хийгээгүй тул өөр Mac руу хуулбал: баруун товч → **Open**.
+- Дэлгэрэнгүй: [`macos/README.md`](macos/README.md).
+
 ## Хэрэглэх
 
 | Үйлдэл | Үр дүн |
