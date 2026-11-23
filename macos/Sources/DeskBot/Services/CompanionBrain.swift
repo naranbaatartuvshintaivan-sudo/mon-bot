@@ -81,6 +81,33 @@ final class CompanionBrain {
         }
     }
 
+    /// Хуулсан → ✓ (UserAction 38, 1.2с).
+    func copied() {
+        machine.set(.userAction, .copied, now: .now, duration: ClipboardPolicy.checkSeconds)
+    }
+
+    /// App нээгдэж / файл татагдаж байна → Processing (ActiveTask 30).
+    /// Reminder-ийн 3с "ойртож байна" нь мөн ActiveTask тул тэр хооронд busy ирвэл дарагдана (зөвшөөрөгдөх).
+    /// Хурдан нээгддэг app (Calculator г.м.) дээр анивчих биш, харагдахуйц байлгах доод хугацаа.
+    static let busyMinSeconds: TimeInterval = 0.8
+    private var busySince: Date?
+
+    func busy(_ on: Bool) {
+        let now = Date()
+        if on {
+            busySince = now
+            machine.set(.activeTask, .processing, now: now)
+        } else {
+            let left = Self.busyMinSeconds - now.timeIntervalSince(busySince ?? .distantPast)
+            busySince = nil
+            if left > 0 {
+                machine.set(.activeTask, .processing, now: now, duration: left) // tick() дээр дуусна
+            } else {
+                machine.clear(.activeTask, now: now)
+            }
+        }
+    }
+
     func battery(_ b: BatteryState) {
         if CompanionRules.isBatteryLow(b) {
             machine.set(.systemStatus, .lowBattery, now: .now)

@@ -52,6 +52,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var media: MediaService!
     private var hotkey: HotkeyService!
     private var gameMode: GameModeService!
+    private var activity: ActivityWatcher!
     private let expression = ExpressionState()
 
     /// Reminder alert queue (C# _alerts / _currentAlert).
@@ -69,6 +70,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         media = MediaService()
         hotkey = HotkeyService()
         gameMode = GameModeService()
+        activity = ActivityWatcher()
         brain = CompanionBrain(settings: settings)
 
         var deps = ControlCenterDeps(settings: settings, reminders: reminders, system: system, media: media,
@@ -115,6 +117,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         system.onUpdate = { [unowned self] in brain.battery(system.battery) }
         media.onChange = { [unowned self] status in brain.media(status) }
 
+        activity.onCopy = { [unowned self] in brain.copied(); Log.info("Reaction: copied ✓") }
+        activity.onBusyChange = { [unowned self] busy in brain.busy(busy); Log.info("Reaction: busy \(busy)") }
+
         hotkey.onPressed = { [unowned self] in island.toggleControlCenter() }
 
         gameMode.screen = { ScreenProvider.screen(for: settings.dockScreen) }
@@ -148,6 +153,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         media.start()
         if let err = applyHotkey(settings.hotkey) { Log.error("Hotkey: \(err)") }
         gameMode.setEnabled(settings.gameModeAutoHide)
+        applyReactions(settings)
         reconcileLoginItem(settings)
         observeSettings(settings)
         Log.info("DeskBot started (notch: \(island.layout.hasNotch), frame: \(NSStringFromRect(island.layout.frame)))")
@@ -197,14 +203,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func observeSettings(_ s: AppSettings) {
         withObservationTracking {
             _ = s.gameModeAutoHide
+            _ = s.reactToCopy
+            _ = s.reactToAppLaunch
+            _ = s.reactToDownloads
         } onChange: { [weak self] in
             Task { @MainActor in
                 guard let self else { return }
                 let s = self.settingsStore.settings
                 self.gameMode.setEnabled(s.gameModeAutoHide)
+                self.applyReactions(s)
                 self.observeSettings(s)
             }
         }
+    }
+
+    private func applyReactions(_ s: AppSettings) {
+        activity.configure(copy: s.reactToCopy, appLaunch: s.reactToAppLaunch, downloads: s.reactToDownloads)
     }
 
     /// `DESKBOT_DEBUG_FACE=1`: 5с тутам face төлөвийг log-д бичнэ (cursor event ирж байгааг шалгах).
@@ -229,6 +243,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         media.stop()
         hotkey.unregister()
         gameMode.setEnabled(false)
+        activity.configure(copy: false, appLaunch: false, downloads: false)
         settingsStore.flush()
         return .terminateNow
     }

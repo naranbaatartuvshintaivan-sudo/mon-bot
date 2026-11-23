@@ -22,6 +22,8 @@ scripts/bundle.sh        # build/DeskBot.app (release, ad-hoc codesign)
 | M3 — Hover/Expanded/Alert, Pin, Auto-hide, drag + snap, олон дэлгэц (control center нь placeholder) | ✅ |
 | M4 — Home, Reminders (+ Alert), Face, Settings, CPU/RAM/Battery, ⌥Space hotkey, login item, game mode | ✅ |
 | M5 — Music (Spotify/Apple Music, AppleScript), `scripts/bundle.sh` → DeskBot.app, 108 test | ✅ |
+| M6 — Reactions: copy → ✓, app нээгдэх / Downloads → Loading, 114 test | ✅ |
+| M7–M9 — Claude chat, desktop ажиглагч, Computer Use ([roadmap](../docs/HANDOFF-macos.md#11-v02-roadmap--хэрэглэгчийн-үйлдэлд-хариу-үзүүлэх-claude-2026-11-23)) | ⏳ |
 
 ## C#-аас ялгаатай шийдвэрүүд
 - `Expression` → `RobotExpression` (`Foundation.Expression`-тэй давхцдаг). Raw value нь C#-ийн нэртэй ижил (`"Happy"` г.м.).
@@ -47,5 +49,6 @@ active (шилжилт, анивчилт, харц хөдөлж байна) → 
 
 ## Permission
 Automation (Spotify/Music.app) — зөвхөн тоглуулагч ажиллаж байхад, анх удаа асууна. Татгалзвал Music panel System Settings-ийн замыг харуулна.
-Шаардлагагүй: global hotkey (Carbon), mouse байрлал, CPU/RAM/Battery, game mode (CGWindowList — цонхны нэр уншихгүй).
+Downloads folder — зөвхөн Face → Reactions → "Loading face while downloading"-ийг асаавал (default унтраалттай).
+Шаардлагагүй: copy ✓ (pasteboard-ийн changeCount л, агуулга уншихгүй), app launch, global hotkey (Carbon), mouse байрлал, CPU/RAM/Battery, game mode (CGWindowList — цонхны нэр уншихгүй).
 Notification Center ашиглахгүй — reminder нь island-ийн Alert. Login item: System Settings-ээс зөвшөөрөл хүсч магадгүй.

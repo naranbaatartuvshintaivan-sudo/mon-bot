@@ -134,3 +134,27 @@ Commit message-ийн төгсгөлд Co-Authored-By мөр нэм. `main` дэ
 ## 10. Definition of Done (macOS v0.1)
 
 App асна → robot дээд төвд гарна → нүд жинхэнэ cursor-ыг дагана → өөрөө анивчина → click → animation + panel → hover томорно, гарахад жижгэрнэ → expression, theme солигдоно → чирж зөөнө → restart хийхэд settings хадгалагдана → Spotify тоглоход мэдээлэл гарна (permission өгсөн бол) → reminder жинхэнэ хадгалагдана → тунгалаг хэсэг бусад app-ийн click-ийг хаахгүй → menu bar-аас цэвэр хаагдана.
+
+## 11. v0.2+ Roadmap — хэрэглэгчийн үйлдэлд хариу үзүүлэх, Claude (2026-11-23)
+
+Зарчим хэвээр: AI унтраалттай байсан ч robot өөрөө амьд. AI нь **opt-in** — хэрэглэгч өөрийн Anthropic API key оруулсан үед л асна. JARVIS шиг дуугаар ярихгүй — текст chat.
+
+**M6 — Local reactions (permission-гүй) ✅**
+- Copy → ✓ (`Copied` expression, UserAction 38, 1.2с). `NSPasteboard.changeCount` л — агуулга уншихгүй; password manager-ийн `org.nspasteboard.ConcealedType/TransientType` алгасна; 0.8с throttle.
+- App нээгдэж байна → Processing (willLaunch→didLaunch, 8с timeout, доод тал нь 0.8с харагдана).
+- ~/Downloads-д `.crdownload/.download/.part/.partial/.opdownload` байна → Processing. Downloads folder-ийн TCC зөвшөөрөл асуудаг тул default **унтраалттай** (Face → Reactions).
+- Browser tab ачаалж буйг нийтийн API-гаар мэдэх боломжгүй (Accessibility шаардана) — M8-д.
+
+**M7 — Claude chat (API key)**
+- Settings: API key → **Keychain** (settings.json-д БИШ). Model `claude-opus-5-5`, `thinking: {type: "adaptive"}`, `output_config.effort: "low"` (chat), streaming (SSE, URLSession `bytes(for:)`).
+- Swift-д албан ёсны SDK байхгүй → raw HTTP `POST /v1/messages` (`x-api-key`, `anthropic-version`). `stop_reason == "refusal"`-ийг шалгана.
+- Control center-д "Chat" tab. System prompt: монголоор, богино, найрсаг. Хариу бичиж байхад robot `Processing`, ирэхэд `Happy`/`NewMessage`.
+
+**M8 — Desktop ажиглагч (opt-in, Screen Recording)**
+- Хэрэглэгч асаасан үед л: үе үе screenshot (ScreenCaptureKit) → Claude-д "алдаа/гацсан зүйл байна уу?" → robot `Error`/`Confused` + монгол зөвлөгөө. Хэр олон удаа илгээхийг хэрэглэгч тохируулна (зардал).
+- Шууд дэлгэцийн агуулгыг гадагш илгээдэг тул: menu bar-т тод индикатор, нэг товчоор зогсоох, password талбар/нууц app-уудыг (1Password, Keychain Access) алгасах жагсаалт.
+
+**M9 — Computer Use agent (opt-in, Accessibility + Screen Recording)**
+- `{"type": "computer_toolset_20260801"}` (GA, beta header-гүй; Opus 5.5-д хуучин `computer_20251124` 400 өгнө). `tool_result` бүр `"toolset_name": "computer"`-ийг буцаана. Mouse/keyboard — `CGEvent` (Accessibility).
+- Давтагддаг ажил: "шинэ folder үүсгээд VS Code-д html файл нээ", "энэ folder-ийн бүх зургийг Downloads руу зөө" г.м. Файлын ажлыг боломжтой бол **tool-оор** (FileManager — move/mkdir) хийж, GUI-г зөвхөн хэрэгтэй үед.
+- Аюулгүй байдал: ажил эхлэхийн өмнө төлөвлөгөөг монголоор харуулж **зөвшөөрөл**; устгах/дарж бичих/илгээх үйлдэл бүрт тусад нь асуух; `Esc` эсвэл robot дээр дарахад шууд зогсоно; хийсэн бүх алхмыг log-д.

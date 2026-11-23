@@ -15,6 +15,7 @@ public struct FaceOverlay: OptionSet, Hashable, Sendable {
     public static let question = FaceOverlay(rawValue: 1 << 8)
     public static let zzz = FaceOverlay(rawValue: 1 << 9)
     public static let warning = FaceOverlay(rawValue: 1 << 10)
+    public static let check = FaceOverlay(rawValue: 1 << 11)   // macOS-only: Copied
 }
 
 /// Нүдний хэлбэрийг тодорхойлох цэвэр тоон параметрүүд. Renderer эдгээрийг lerp хийж
@@ -62,6 +63,7 @@ public struct FaceParameters: Hashable, Sendable {
 public enum FaceLibrary {
     public static let red: UInt32 = 0xFFFF_3B4A
     public static let amber: UInt32 = 0xFFFF_B020
+    public static let green: UInt32 = 0xFF34_D399
 
     public static let neutral = FaceParameters()
 
@@ -103,6 +105,9 @@ public enum FaceLibrary {
             neutral { $0.lidTop = 0.25; $0.lidAngle = -6; $0.glow = 0.8; $0.brightness = 0.85; $0.semanticColor = amber; $0.overlay = .battery }
         case .music:
             neutral { $0.bottomCut = 0.42; $0.bounce = 0.045; $0.bounceSpeed = 8.5; $0.glow = 1.2; $0.brightness = 1.1; $0.overlay = .notes }
+        case .copied:
+            // Happy-тэй ойролцоо ∩ нүд + ногоон ✓ (macOS-only, C#-д байхгүй).
+            neutral { $0.eyeWidth = 1.05; $0.eyeHeight = 0.95; $0.bottomCut = 0.5; $0.offsetY = -0.03; $0.glow = 1.3; $0.brightness = 1.15; $0.overlay = .check }
         }
     }
 }

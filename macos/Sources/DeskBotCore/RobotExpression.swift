@@ -21,6 +21,8 @@ public enum RobotExpression: String, CaseIterable, Codable, Sendable {
     case reminder = "Reminder"
     case lowBattery = "LowBattery"
     case music = "Music"
+    /// macOS-only (C#-д байхгүй): хэрэглэгч юм хуулсны дараа ✓ (ActivityWatcher).
+    case copied = "Copied"
 }
 
 /// Expression-ийг хэн хүсэж байгаа вэ. Тоо их байх тусам priority өндөр.
@@ -31,6 +33,7 @@ public enum ExpressionSource: Int, CaseIterable, Sendable {
     case music = 20
     case activeTask = 30
     case systemStatus = 35  // low battery
+    case userAction = 38    // хуулсан ✓ — хэрэглэгчийн үйлдлийн богино хариу (macOS-only)
     case userClick = 40
     case preview = 45       // Face tab дээр хэрэглэгч туршиж үзэх
     case newMessage = 50

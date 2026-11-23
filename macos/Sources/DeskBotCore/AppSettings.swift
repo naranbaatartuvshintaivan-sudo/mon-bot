@@ -58,6 +58,13 @@ public final class AppSettings: Codable {
     public var gameModeAutoHide = true
     public var startAtLogin = false
     public var sleepWhenIdle = true
+    // ── Reactions (macOS-only) ─────────────
+    /// Юм хуулахад ✓. Pasteboard-ийн агуулгыг уншихгүй — зөвхөн changeCount.
+    public var reactToCopy = true
+    /// App нээгдэж байхад Loading (Processing) царай.
+    public var reactToAppLaunch = true
+    /// ~/Downloads-д татагдаж буй файл байхад Loading. Downloads folder-ийн зөвшөөрөл асуудаг тул default унтраалттай.
+    public var reactToDownloads = false
     public var hotkey = AppSettings.defaultHotkey
     /// Control center-ийн сүүлд нээсэн tab (schema 2).
     public var lastTab = "Home"
@@ -108,7 +115,8 @@ public final class AppSettings: Codable {
              islandWidth, islandHeight, hoverWidth, panelWidth, panelHeight, cornerRadius,
              backgroundOpacity, background, topOffset, offsetX, dockScreen, autoCollapseMs, hoverDelayMs,
              pinned, autoHide, lockPosition, followCursor, reactToGlobalClicks, reducedMotion,
-             performanceMode, gameModeAutoHide, startAtLogin, sleepWhenIdle, hotkey, lastTab
+             performanceMode, gameModeAutoHide, startAtLogin, sleepWhenIdle, hotkey, lastTab,
+             reactToCopy, reactToAppLaunch, reactToDownloads
     }
 
     /// M0–M2 хувилбарын key (уншихад л).
@@ -156,6 +164,9 @@ public final class AppSettings: Codable {
         sleepWhenIdle = try d(.sleepWhenIdle, sleepWhenIdle)
         hotkey = try d(.hotkey, hotkey)
         lastTab = try d(.lastTab, lastTab)
+        reactToCopy = try d(.reactToCopy, reactToCopy)
+        reactToAppLaunch = try d(.reactToAppLaunch, reactToAppLaunch)
+        reactToDownloads = try d(.reactToDownloads, reactToDownloads)
 
         // Хуучин файл эвдрэхгүй: дутуу key → default. Хориотой/буруу hotkey-г `sanitize()` default болгоно.
         schemaVersion = max(schemaVersion, Self.currentSchema)
@@ -198,5 +209,8 @@ public final class AppSettings: Codable {
         try c.encode(sleepWhenIdle, forKey: .sleepWhenIdle)
         try c.encode(hotkey, forKey: .hotkey)
         try c.encode(lastTab, forKey: .lastTab)
+        try c.encode(reactToCopy, forKey: .reactToCopy)
+        try c.encode(reactToAppLaunch, forKey: .reactToAppLaunch)
+        try c.encode(reactToDownloads, forKey: .reactToDownloads)
     }
 }

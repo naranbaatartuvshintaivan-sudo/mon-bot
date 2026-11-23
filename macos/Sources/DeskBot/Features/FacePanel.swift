@@ -10,7 +10,7 @@ struct FacePanel: View {
 
     static let moods: [RobotExpression] = [.idle, .happy, .excited, .sad, .confused, .sleepy]
     static let previews: [RobotExpression] = [.surprised, .angry, .processing, .listening, .error,
-                                              .newMessage, .reminder, .lowBattery, .music]
+                                              .newMessage, .reminder, .lowBattery, .music, .copied]
 
     var body: some View {
         @Bindable var s = deps.settings
@@ -72,6 +72,10 @@ struct FacePanel: View {
                     ToggleRow(title: "Glance at clicks anywhere", isOn: $s.reactToGlobalClicks)
                     ToggleRow(title: "Sleep after 5 min idle", isOn: $s.sleepWhenIdle)
                     ToggleRow(title: "Reduced motion", isOn: $s.reducedMotion)
+                    SectionTitle("Reactions")
+                    ToggleRow(title: "✓ when I copy something", isOn: $s.reactToCopy)
+                    ToggleRow(title: "Loading face while an app opens", isOn: $s.reactToAppLaunch)
+                    ToggleRow(title: "Loading face while downloading (asks for Downloads access)", isOn: $s.reactToDownloads)
                 }
                 .padding(.trailing, 6)
             }

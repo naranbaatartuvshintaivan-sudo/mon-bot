@@ -352,6 +352,21 @@ enum FaceRenderer {
             fill(cg, tri, RGBA(argb: FaceLibrary.amber))
             drawGlyph(cg, "!", c.x, c.y + s * 0.05, s * 0.7, RGBA(r: 0x05, g: 0x06, b: 0x08))
         }
+        if o.contains(.check) {
+            // Ногоон дугуй badge + ✓. Эхний ~0.25с-д pop хийж томорно (time нь animator-ын үргэлжилсэн цаг).
+            let r = baseH * 0.3 * (1 + 0.06 * sin(time * 6))
+            let c = CGPoint(x: right, y: H * 0.3)
+            fill(cg, ellipse(c.x, c.y, r), RGBA(argb: FaceLibrary.green))
+            let tick = CGMutablePath()
+            tick.move(to: CGPoint(x: c.x - r * 0.45, y: c.y + r * 0.02))
+            tick.addLine(to: CGPoint(x: c.x - r * 0.1, y: c.y + r * 0.38))
+            tick.addLine(to: CGPoint(x: c.x + r * 0.5, y: c.y - r * 0.35))
+            cg.saveGState()
+            cg.setLineCap(.round)
+            cg.setLineJoin(.round)
+            stroke(cg, tick, RGBA(r: 0x05, g: 0x06, b: 0x08), max(1.4, r * 0.28))
+            cg.restoreGState()
+        }
     }
 
     private static func drawStar(_ cg: CGContext, _ x: Double, _ y: Double, _ s: Double, _ c: RGBA) {
